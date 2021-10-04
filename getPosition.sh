@@ -1,25 +1,59 @@
 #!/bin/bash
-# Ask the user for their name
-echo Input file name ie "filename.ubx"
+
+yes="y"
+no="n"
+ubx="UBX"
+o=".obs"
+n=".nav"
+
+echo Enter filename, without extension
 read filename
-echo RINEX now processing: $filename
 
-RTKpath='Documents/GitHub/GNSSProcess/RTKLIB-demo5/app/consapp/convbin/gcc'
+echo Do you want to process RAW to RINEX? y/n
+read response
 
-cd $RTKpath
-base="/Users/derekpickell/Documents/GitHub/GNSSProcess/tempData/"
-filepath=$base$filename
-echo $filepath
+BASEDIR=$(dirname "$0")
+CONVBINpath=$BASEDIR"/RTKLIB-demo5/app/consapp/convbin/gcc"
+RNX2RTKPpath=$BASEDIR"/RTKLIB-demo5/app/consapp/rnx2rtkp/gcc"
 
-./convbin -r ubx $filepath
-# change settings to output rinex2
+if [ $response == $yes ]; then
+
+    ubxFILE="$filename.$ubx"
+    echo RINEX now processing: $ubxFILE
+    cd $CONVBINpath
+    
+    RAWPATH=$BASEDIR"/tempData/"$ubxFILE
+    echo $RAWPATH
+
+    ./convbin -r ubx $RAWPATH -v 2.11
+fi
+
 
 echo Do you want to process position? y/n
 read response
 
-if [$response == "y"]; then
-#	cd ../..
-#	cd rnx2rtkp/gcc
-#	./rnx2rtkp 
+if [ $response == $yes ]; then
+    OBFILE="$filename$o"
+    NAVFILE="$filename$n"
+    
+    OB=$BASEDIR"/tempData/"$OBFILE
+    NAV=$BASEDIR"/tempData/"$NAVFILE
+    echo $OBFILE
+    echo $NAVFILE
+    cd ~
+    cd $RNX2RTKPpath
+    ./rnx2rtkp -p 0 -m 15 -e -u -o $filename".pos" $OB $NAV
+    mv $filename".pos" $BASEDIR"/tempData/"
+    mv $filename"_events.pos" $BASEDIR"/tempData/"
+    
+ fi
 
+echo Do you want to process statistics? y/n
+read response
 
+if [ $response == $yes ]; then
+    echo Python will automatically process the .pos file \in /tempData
+    cd $BASEDIR
+    source env/bin/activate
+    python3 dataAnalysis.py
+ fi

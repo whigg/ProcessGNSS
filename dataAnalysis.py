@@ -32,19 +32,22 @@ def det_sample(t, x0, y0, z0):
     also curtails array to fixed time
     """
     if ((t[2]-t[1])==1):
-        x = x0[0::15]
-        y = y0[0::15]
-        z = z0[0::15]
+        x1 = x0[0::15]
+        y1 = y0[0::15]
+        z1 = z0[0::15]
         print("Sample Rate 1Hz: Decimating")
     else:
+        x1 = x0
+        y1 = y0
+        z1 = z0
         print("Sample Rate 15s")
 
     #curtail array length NUM_OBSERVATIONS
-    x = x0[:NUM_OBSERVATIONS]
-    y = y0[:NUM_OBSERVATIONS]
-    z = z0[:NUM_OBSERVATIONS]
+    x2 = x1[:NUM_OBSERVATIONS]
+    y2 = y1[:NUM_OBSERVATIONS]
+    z2 = z1[:NUM_OBSERVATIONS]
 
-    return x, y, z
+    return x2, y2, z2
 
 def calc_statistics(x, y, z):
     """

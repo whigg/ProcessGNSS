@@ -25,7 +25,7 @@ if [ $response == $yes ]; then
     RAWPATH=$BASEDIR"/tempData/"$ubxFILE
     echo $RAWPATH
 
-    ./convbin -r ubx $RAWPATH -v 2.11
+    ./convbin -r ubx $RAWPATH -v 2.11 -os
 fi
 
 

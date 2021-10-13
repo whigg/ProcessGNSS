@@ -64,12 +64,6 @@ def calc_statistics(x, y, z, t):
     stdy = statistics.stdev(y)
     meanz = statistics.mean(z) 
     stdz = statistics.stdev(z)
-    # print ("x mean (m): ", meanx)
-    # print ("x stdev (m): ", stdx)
-    # print ("x sample size: ", len(x))
-    # print ("z mean (m): ", meanz)
-    # print ("z stdev (m): ", stdz)
-    # print ("z sample size: ", len(z))
 
     #ploting
     fig, ax = plt.subplots(3, sharex=True)
@@ -97,21 +91,6 @@ def ecef_lla(x, y, z):
         lattitude.append(lat)
         longitude.append(lon)
         altitude.append(alt)
-
-    #ploting
-    # maxilat = max(lattitude)
-    # minilat = min(lattitude)
-    # maxilon = max(longitude)
-    # minilon = min(longitude)
-
-    # print("Number of Observations: ", len(lattitude))
-    # plt.scatter(longitude, lattitude, alpha=0.1, edgecolors='none')
-    # plt.xlim([maxilon, minilon])
-    # plt.ylim([minilat, maxilat])
-    # plt.xlabel("Longitude E/W")
-    # plt.ylabel("Lattitude N/S")
-    # plt.title("Lat/Lon Scatter")
-    # plt.show()
 
     return lattitude, longitude
 
@@ -161,12 +140,21 @@ if __name__ == '__main__':
     file_name = glob.glob(path)
     print("FILE FOUND: ", file_name)
 
-    #Calculations:
+    # PARSE FILE
     x, y, z, t = parse_file(file_name[0])
-    x1, y1, z1, t1 = det_sample(t, x, y, z) 
-    #calc_statistics(x1, y1, z1, t1)
-    lat, lon = ecef_lla(x1, y1, z1)
-    lla_plot(lat, lon)
+
+    # ECEF PLOTS
+    #x1, y1, z1, t1 = det_sample(t, x, y, z) 
+    # calc_statistics(x1, y1, z1, t1)
+    calc_statistics(x, y, z, t)
+
+    # LAT LON  DISTRIBUTION
+    #lat, lon = ecef_lla(x1, y1, z1)
+    #lla_plot(lat, lon)
+
+    # HISTOGRAM
+    #plt.hist(lat, bins=300)
+    #plt.show()
     
      
 

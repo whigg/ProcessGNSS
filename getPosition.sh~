@@ -2,6 +2,9 @@
 
 yes="y"
 no="n"
+ubx="UBX"
+o=".obs"
+n=".nav"
 
 echo Enter filename, without extension
 read filename
@@ -9,15 +12,17 @@ read filename
 echo Do you want to process RAW to RINEX? y/n
 read response
 
-BASEDIR=$PWD
-RTKpath=$BASEDIR"/RTKLIB-demo5/app/consapp/convbin/gcc"
+BASEDIR=$(dirname "$0")
+CONVBINpath=$BASEDIR"/RTKLIB-demo5/app/consapp/convbin/gcc"
+RNX2RTKPpath=$BASEDIR"/RTKLIB-demo5/app/consapp/rnx2rtkp/gcc"
 
 if [ $response == $yes ]; then
 
-    ubxFILE=$filename".ubx"
-    echo RINEX now processing: $filename
-    cd $RTKpath
-    RAWPATH=$BASEDIR"/tempData/"$filename
+    ubxFILE="$filename.$ubx"
+    echo RINEX now processing: $ubxFILE
+    cd $CONVBINpath
+    
+    RAWPATH=$BASEDIR"/tempData/"$ubxFILE
     echo $RAWPATH
 
     ./convbin -r ubx $RAWPATH -v 2.11
@@ -28,13 +33,19 @@ echo Do you want to process position? y/n
 read response
 
 if [ $response == $yes ]; then
-    newFILE=${filename##*}
-    echo $newFILE
-    OBFILE=$BASEDIR"/tempData/"$newFILE".o"
-    NAVFILE=$BASEDIR"/tempData/"$newFILE".nav"
-    cd ../..
-    cd rnx2rtkp/gcc
-    ./rnx2rtkp -p 0 -m 15 -e -u $OBFILE $NAVFILE
+    OBFILE="$filename$o"
+    NAVFILE="$filename$n"
+    
+    OB=$BASEDIR"/tempData/"$OBFILE
+    NAV=$BASEDIR"/tempData/"$NAVFILE
+    echo $OBFILE
+    echo $NAVFILE
+    cd ~
+    cd $RNX2RTKPpath
+    ./rnx2rtkp -p 0 -m 15 -e -u -o $filename".pos" $OB $NAV
+    mv $filename".pos" $BASEDIR"/tempData/"
+    mv $filename"_events.pos" $BASEDIR"/tempData/"
+    
  fi
 
 echo Do you want to process statistics? y/n

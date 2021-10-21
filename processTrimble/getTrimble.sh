@@ -20,7 +20,7 @@ if [ $response == $yes ]; then
     echo RINEX now processing: $datFILE notice: currently configured only for GPS nav messages
     cd $BASEDIR
 
-    ./teqc +nav $filename".gps" $filename".dat" > $filename".obs"
+    ./teqc -O.obs L1+l2+ca+p2+s1+s2 +nav $filename".gps" $filename".dat" > $filename".obs" 
 fi
 
 

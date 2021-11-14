@@ -6,6 +6,7 @@ dat="dat"
 o=".obs"
 n=".gps"
 
+echo The following script reads a .dat trimble file, outputs L1/L2 .obs file and .gps.
 echo Enter filename, without .dat extension
 read filename
 
@@ -50,7 +51,7 @@ read response
 if [ $response == $yes ]; then
     echo Python will process the .pos file moved to /tempData
     cd $BASEDIR
-    cd ..
+    mv $filename".pos" ../"tempData"
     source env/bin/activate
     python3 dataAnalysis.py
  fi

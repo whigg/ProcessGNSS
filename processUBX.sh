@@ -42,7 +42,7 @@ if [ $response == $yes ]; then
     echo $NAVFILE
     cd ~
     cd $RNX2RTKPpath
-    ./rnx2rtkp -p 0 -m 15 -e -u -o $filename".pos" $OB $NAV
+    ./rnx2rtkp -p 0 -m 15 -t -e -o $filename".pos" $OB $NAV
     mv $filename".pos" $BASEDIR"/tempData/"
     mv $filename"_events.pos" $BASEDIR"/tempData/"
     

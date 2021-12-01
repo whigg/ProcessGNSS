@@ -47,6 +47,7 @@ if [ $response == $yes ]; then
     mv $filename"_events.pos" $BASEDIR"/tempData/"
     
  fi
+ 
 
 echo Do you want to process statistics? y/n
 read response

@@ -115,7 +115,7 @@ def histogram_w_stdev_plot(data, mean, sd_line1, sd_line2, ax=None):
     return(ax)
 
 ##########DATA ANALYSIS
-def calc_ECEFstatistics(x, y, z, t):
+def ecef_and_histogram(x, y, z, t):
     """
     """
     fig, ((ax1, ax4), (ax2, ax5), (ax3, ax6)) = plt.subplots(3, 2, figsize=(12,8), gridspec_kw={'width_ratios': [3, 1]}) #, sharex=True
@@ -188,7 +188,7 @@ def lla_plot(lat, lon):
     ax.legend(loc='lower left', fontsize = 8)
     plt.show()
 
-def calc_ECEFstatisticsPPK(x, y, z, t, x1, y1, z1, t1):
+def ecefPPK_compared_ecefOriginal(x, y, z, t, x1, y1, z1, t1):
     """
     x, y, z: ECEF of unprocessed file
     x1, y1, z1: PPK/RTK data (will be plotted on top of original)
@@ -221,8 +221,7 @@ def calc_ECEFstatisticsPPK(x, y, z, t, x1, y1, z1, t1):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--xyz', help='Plot xyz coordinates on individual scatter plots')
-    parser.add_argument('--lla', help='Plot lat vs lon')
-    parser.add_argument('--kinematic', help='Plots kinematic processed data')
+    parser.add_argument('--compare', help='Plots kinematic processed data vs original')
     args = parser.parse_args()
 
     print("PULLING .pos file[s] from /tempData folder...")
@@ -238,25 +237,20 @@ if __name__ == '__main__':
 
     if args.xyz is not None:
         # ECEF PLOTS
-        calc_ECEFstatistics(x, y, z, t)
+        ecef_and_histogram(x, y, z, t)
 
-    if args.lla is not None:
-        # LAT LON  DISTRIBUTION
-        lat, lon, alt = ecef_lla(x1, y1, z1)
-        lla_plot(lat, lon)
-
-    if args.kinematic is not None: 
+    if args.compare is not None: 
         print("Make sure ")
         num = input("Which file is the receiver .pos? [0, 1, ...]? ")
         x, y, z, t = parse_file(file_name[num]) 
         num2 = input("Which file is the base .pos? ")
         x1, y1, z1, t1 = parse_file(file_name[num2])
-        calc_ECEFstatisticsPPK(x, y, z, t, x1, y1, z1, t1)
+        ecefPPK_compared_ecefOriginal(x, y, z, t, x1, y1, z1, t1)
 
     else:
         #default
         x2, y2, z2, t2 = det_sample(x, y, z, t, 1) 
-        calc_ECEFstatistics(x2, y2, z2, t2)
+        ecef_and_histogram(x2, y2, z2, t2)
 
     
     

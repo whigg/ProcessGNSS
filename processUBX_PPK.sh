@@ -43,5 +43,5 @@ if [ $response == $yes ]; then
     echo Python will automatically process the .pos file \in /tempData
     cd $BASEDIR
     source env/bin/activate
-    python3 dataAnalysis.py --kinematic 0
+    python3 dataAnalysis.py 
 fi

@@ -42,6 +42,7 @@ if [ $response == $yes ]; then
     echo $NAVFILE
     cd ~
     cd $RNX2RTKPpath
+    #./rnx2rtkp -k ppkStatic.conf -p 0 -m 15 -t -e -o pos1-navsys  $filename".pos" $OB $NAV
     ./rnx2rtkp -p 0 -m 15 -t -e -o $filename".pos" $OB $NAV
     mv $filename".pos" $BASEDIR"/tempData/"
     mv $filename"_events.pos" $BASEDIR"/tempData/"
@@ -56,5 +57,5 @@ if [ $response == $yes ]; then
     echo Python will automatically process the .pos file \in /tempData
     cd $BASEDIR
     source env/bin/activate
-    python3 dataAnalysis.py
+    python3 -m dataAnalysis.py
  fi

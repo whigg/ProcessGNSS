@@ -19,8 +19,8 @@ plt.rc('font', family='serif')
 plt.rc('xtick', labelsize=6)
 plt.rc('ytick', labelsize=6)
 plot_lw = 0.5
-title_size = 10
-label_size = 8
+title_size = 12
+label_size = 10
 lim_range = 10
 ########
 
@@ -35,7 +35,7 @@ def parse_file(file_name):
     t1 = []
     t2 = []
     with open(file_name) as f:
-        for i in range(30): #skip first 8 lines of header
+        for i in range(8): #skip first 8 lines of header
             next(f)
         for line in f:
             values = line.split()
@@ -50,6 +50,7 @@ def parse_file(file_name):
     return x, y, z, tfinal
         
 def det_sample(x0, y0, z0, t0, case=1): #time=86400
+    time = 86400
     """
     If sample rate is 1Hz, decide whether to decimate to 15s or maintain
     """
@@ -60,21 +61,18 @@ def det_sample(x0, y0, z0, t0, case=1): #time=86400
             t1 = t0[0::15]
             print("Decimating from 1Hz to 15Hz")
     elif case==1:
-            x1 = x0
-            y1 = y0
-            z1 = z0
-            t1 = t0  
+            x1 = x0[0:time]
+            y1 = y0[0:time]
+            z1 = z0[0:time]
+            t1 = t0[0:time] 
     
-    # x1 = x1[0:time]
-    # y1 = y1[0:time]
-    # z1 = z1[0:time]
-    #t1 = t1[0:time]
+    
   
     return x1, y1, z1, t1
 
 def ecef_lla(x, y, z):
-    """
-    """
+    # """
+    # """
     lattitude = []
     longitude = []
     altitude = []
@@ -102,28 +100,30 @@ def ecef_w_lines_plot(t, y, mean, mean_line, sd_line1=None, sd_line2=None, stdev
 
     return(ax)
 
-def histogram_w_stdev_plot(data, mean, sd_line1, sd_line2, ax=None):
+def histogram_w_stdev_plot(data, mean, sd, sd_line1, sd_line2, ax=None):
     if ax is None:
         ax.plt.gca()
 
     ax.hist(data, bins=300)
     ax.axvline(mean, color='red', lw=plot_lw, ls='--')
     ax.axvline(sd_line1[0], color='green', lw=plot_lw, ls='--')
-    ax.axvline(sd_line2[0], color='green', lw=plot_lw, ls='--')
+    ax.axvline(sd_line2[0], color='green', lw=plot_lw, ls='--', label="3\u03C3: +/-"+ '%.5g' % sd +"m")
     ax.set_xlim(float('%.11g' % mean) - lim_range, float('%.11g' % mean) + lim_range)
+    ax.legend(loc='upper right', fontsize = label_size)
 
     return(ax)
 
 ##########DATA ANALYSIS
-def ecef_and_histogram(x, y, z, t):
+def ecef_and_histogram(x, y, z, t, x1, y1, z1, t1):
     """
     """
-    fig, ((ax1, ax4), (ax2, ax5), (ax3, ax6)) = plt.subplots(3, 2, figsize=(12,8), gridspec_kw={'width_ratios': [3, 1]}) #, sharex=True
-    fig.suptitle(f"ECEF Positions from " +str(t[0]) + " to "+ str(t[-1]))
+    fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(2, 3, figsize=(12,8)) #, sharex=True
+    fig.suptitle(f"ECEF Comparisons: Trimble & ZED-F9 24hr Histogram")
 
     l = [x, y, z]
-    ax = [ax1, ax2, ax3]
-    ax_hist = [ax4, ax5, ax6]
+    l1 = [x1, y1, z1]
+    ax_hist = [ax1, ax2, ax3]
+    ax_hist2 = [ax4, ax5, ax6]
     for i in range(3):
         mean = statistics.mean(l[i])
         mean_line = [mean] * len(l[i])
@@ -131,22 +131,24 @@ def ecef_and_histogram(x, y, z, t):
         stdev3 = 3*stdev
         std_line = [mean+stdev3] *len(l[i])
         std_line2 = [mean-stdev3] *len(l[i])
-        #plot ECEF
-        ecef_w_lines_plot(t, l[i], mean, mean_line, std_line, std_line2, stdev3, ax=ax[i])
-        #plot Histogram
-        histogram_w_stdev_plot(l[i], mean, std_line, std_line2, ax_hist[i])
-        
-    ax1.set_title("x position (m)", fontsize = title_size) 
-    ax1.set_xticklabels([])
-    ax2.set_title("y position (m)", fontsize = title_size) 
-    ax2.set_xticklabels([])
-    ax3.set_title("z position (m)", fontsize = title_size) 
-    ax3.set_xticklabels([])
-    ax3.set_xticklabels(ax3.get_xticks(), rotation = 45)
-    ax3.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d %H:%M:%S"))
-    ax3.set(xlabel="Time")
+        histogram_w_stdev_plot(l[i], mean, stdev3, std_line, std_line2, ax_hist[i])
 
-    plt.margins(x=0)
+        mean1 = statistics.mean(l1[i])
+        mean_line1 = [mean1] * len(l1[i])
+        stdev1 = statistics.pstdev(l1[i])
+        stdev31 = 3*stdev1
+        std_line1 = [mean1+stdev31] *len(l1[i])
+        std_line21 = [mean1-stdev31] *len(l1[i])
+        histogram_w_stdev_plot(l1[i], mean1, stdev31, std_line1, std_line21, ax_hist2[i])
+        
+    ax1.set_title("Trimble x position (m)", fontsize = title_size) 
+    ax2.set_title("Trimble y position (m)", fontsize = title_size) 
+    ax3.set_title("Trimble z position (m)", fontsize = title_size) 
+    ax4.set_title("ZED x position (m)", fontsize = title_size) 
+    ax5.set_title("ZED y position (m)", fontsize = title_size) 
+    ax6.set_title("ZED z position (m)", fontsize = title_size)
+
+    #plt.margins(x=0)
     plt.show()
 
 def lla_plot(lat, lon):
@@ -241,16 +243,20 @@ if __name__ == '__main__':
 
     if args.compare is not None: 
         print("Make sure ")
-        num = input("Which file is the receiver .pos? [0, 1, ...]? ")
+        #num = input("Which file is the receiver .pos? [0, 1, ...]? ")
         x, y, z, t = parse_file(file_name[num]) 
-        num2 = input("Which file is the base .pos? ")
+        #num2 = input("Which file is the base .pos? ")
         x1, y1, z1, t1 = parse_file(file_name[num2])
         ecefPPK_compared_ecefOriginal(x, y, z, t, x1, y1, z1, t1)
 
     else:
         #default
-        x2, y2, z2, t2 = det_sample(x, y, z, t, 1) 
-        ecef_and_histogram(x2, y2, z2, t2)
+        x, y, z, t = parse_file(file_name[0]) 
+        x1, y1, z1, t1 = parse_file(file_name[1])
+        a, b, c, d = det_sample(x, y, z, t, 1) 
+        e, f, g, h = det_sample(x1, y1, z1, t1, 1) 
+        #x2, y2, z2, t2 = det_sample(x, y, z, t, 1) 
+        ecef_and_histogram(a, b, c, d, e, f, g, h)
 
     
     

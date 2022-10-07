@@ -1,11 +1,12 @@
 # DEREK PICKELL - Adapted FROM: https://github.com/glaciology/ICEPICS_examples/blob/master/Renland_data_access.ipynb
 # BEAM OUTPUT FILES: does this account for 180 degree yaw change? 
-# Data filtering: what happens here? 
+# Data filtering: read_atl06() outputs 6 files filtered for quality flag and bounding box
 
 import numpy as np 
 import matplotlib.pyplot as plt
 import h5py
 import os
+from geopy import distance
 from glob import glob
 from astropy.time import Time
 
@@ -137,25 +138,72 @@ def read_h5(fname, vnames=[]):
     with h5py.File(fname, 'r') as f:
         return [f[v][:] for v in vnames]
 
+def get_nearby_points(stationLon, stationLat, icesat_filepath, radius):
+    """
+    returns a cropped list of ICESat elevations that are within defined radius of 
+    the GNSS station
+    """
+    lon, lat, t, h = read_h5(file_path, ['lon', 'lat', 't_year', 'h_elv'])
+    lon_radius = []
+    lat_radius = []
+    height_radius = []
+
+    for i in range(0, lon.size):
+        d = distance.distance((lat[i], lon[i]), (stationLat, stationLon)).meters
+        if d < radius:
+            print(d)
+            lat_radius.append(lat[i])
+            lon_radius.append(lon[i])
+            height_radius.append(h[i])
+
+    if len(height_radius) == 0:
+        print("no points in vicinity")
+    else:
+        print("number of points found: ", len(height_radius))
+        plt.scatter(lon_radius, lat_radius, c=height_radius)
+        plt.scatter(stationLon, stationLat, c='r')
+        plt.rcParams.update({'font.size': 14})
+        plt.xlabel('Longitude ($^o$)', fontsize=14, fontweight='bold')
+        plt.ylabel('Latitude ($^o$)', fontsize=14, fontweight='bold')
+        plt.title(file_path)    
+        plt.colorbar()
+        plt.show()
+
+        # plt.scatter(np.ones(len(height_radius)), height_radius, c='b')
+        # plt.scatter(0, 3240, c='r')
+        # plt.show()
+
+
+    return height_radius
+
 if __name__ == '__main__':
+
+    station_coordinates = [[-38.5442387, 72.61694651], [-38.47053573, 72.57373086], [-38.01298382, 72.64268509], [-37.75339548, 72.64253483], [-38.29891839, 72.58576698], [-38.03950328, 72.58514], [-37.77985812, 72.5850767], [-38.53220871, 72.64324861], [-38.55849657, 72.58575389], [-38.81850178, 72.58508771], [-38.2726624, 72.64291666], [-38.79179363, 72.64336517]]
+    coordinates_transformed = np.array(station_coordinates).T
+
     script_dir = os.path.dirname(__file__)
     tempdir = 'tempData'
     filename = 'ATL06_20220519155012_08791505_005_02.h5'
-    filename2 = 'ATL06_20220519155012_08791505_005_02_gt3r.h5'
+    filename2 = 'ATL06_20220519155012_08791505_005_02_gt1l.h5'
+    file_path = os.path.join(script_dir, tempdir, filename2)
 
-    #bbox = None
-    bbox = -38.9,-37.7,72.5,72.7 # OGRENET BOUNDING BOX
+    # get_nearby_points(station_coordinates[1][0], station_coordinates[1][1], file_path, 200)
+
+    # Get individual Files
+    # bbox = -38.9,-37.7,72.5,72.7 # OGRENET BOUNDING BOX
     # read_atl06(os.path.join(script_dir, tempdir, filename), bbox)
 
-    lon, lat, t, h = read_h5(os.path.join(script_dir, tempdir, filename2), ['lon', 'lat', 't_year', 'h_elv'])
-    plt.scatter(lon, lat, c=h)
-    plt.rcParams.update({'font.size': 14})    
-    plt.xlabel('Longitude ($^o$)', fontsize=14, fontweight='bold')
-    plt.ylabel('Latitude ($^o$)', fontsize=14, fontweight='bold')
-    plt.colorbar()
-    plt.show()
+    # lon, lat, t, h = read_h5(file_path, ['lon', 'lat', 't_year', 'h_elv'])
+    # plt.scatter(lon, lat, c=h)
+    # plt.scatter(coordinates_transformed[0], coordinates_transformed[1], c='r')
+    # plt.rcParams.update({'font.size': 14})
+    # # plt.Circle((station_coordinates[1][0], station_coordinates[1][1]), 2, color='b', fill=False)
+    # plt.xlabel('Longitude ($^o$)', fontsize=14, fontweight='bold')
+    # plt.ylabel('Latitude ($^o$)', fontsize=14, fontweight='bold')
+    # plt.colorbar()
+    # plt.show()
 
-    print("saving CSV")
-    np.savetxt(filename2 + '.txt',np.c_[lon, lat, h])
+    # print("saving CSV")
+    # np.savetxt(filename2 + '.txt',np.c_[lon, lat, h])
 
 

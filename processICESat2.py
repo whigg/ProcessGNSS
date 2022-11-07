@@ -66,6 +66,7 @@ def read_atl06(fname, bbox):
             lon = fi[g+'/land_ice_segments/longitude'][:]
             h_li = fi[g+'/land_ice_segments/h_li'][:]
             s_li = fi[g+'/land_ice_segments/h_li_sigma'][:]
+            s_geo = fi[g+'/land_ice_segments/sigma_geo_h'][:] # added by Derek
             t_dt = fi[g+'/land_ice_segments/delta_time'][:]
             q_flag = fi[g+'/land_ice_segments/atl06_quality_summary'][:]
             t_ref = fi['/ancillary_data/atlas_sdp_gps_epoch'][:]
@@ -88,9 +89,9 @@ def read_atl06(fname, bbox):
         mask = (q_flag == 0) & (np.abs(h_li) < 10e3) & (bbox_mask == 1)
         
         # Update variables        
-        lat, lon, h_li, s_li, t_dt, q_flag, \
+        lat, lon, h_li, s_li, s_geo, t_dt, q_flag, \
              rgt, orb = \
-                lat[mask], lon[mask], h_li[mask], s_li[mask], t_dt[mask], \
+                lat[mask], lon[mask], h_li[mask], s_li[mask], s_geo[mask], t_dt[mask], \
                 q_flag[mask],  \
                 rgt[mask], orb[mask]
         
@@ -127,6 +128,7 @@ def read_atl06(fname, bbox):
             f['t_year'] = t_year
             f['t_sec'] = t_gps
             f['s_elv'] = s_li
+            f['geo_elv'] = s_geo
             f['q_flg'] = q_flag
             f['rgt'] = rgt
             f['trk_type'] = i_asc
@@ -142,6 +144,7 @@ def get_nearby_points(stationLon, stationLat, icesat_filepath, radius):
     """
     returns a cropped list of ICESat elevations that are within defined radius of 
     the GNSS station
+    Written by Derek
     """
     lon, lat, t, h = read_h5(file_path, ['lon', 'lat', 't_year', 'h_elv'])
     lon_radius = []
@@ -190,10 +193,10 @@ if __name__ == '__main__':
     # get_nearby_points(station_coordinates[1][0], station_coordinates[1][1], file_path, 200)
 
     # Get individual Files
-    # bbox = -38.9,-37.7,72.5,72.7 # OGRENET BOUNDING BOX
-    # read_atl06(os.path.join(script_dir, tempdir, filename), bbox)
+    bbox = -38.9,-37.7,72.5,72.7 # OGRENET BOUNDING BOX
+    read_atl06(os.path.join(script_dir, tempdir, filename), bbox)
 
-    # lon, lat, t, h = read_h5(file_path, ['lon', 'lat', 't_year', 'h_elv'])
+    lon, lat, t, h, h_err, g_err = read_h5(file_path, ['lon', 'lat', 't_year', 'h_elv', 's_elv', 'geo_elv'])
     # plt.scatter(lon, lat, c=h)
     # plt.scatter(coordinates_transformed[0], coordinates_transformed[1], c='r')
     # plt.rcParams.update({'font.size': 14})
@@ -204,6 +207,6 @@ if __name__ == '__main__':
     # plt.show()
 
     # print("saving CSV")
-    # np.savetxt(filename2 + '.txt',np.c_[lon, lat, h])
+    np.savetxt(filename2 + '.txt',np.c_[lon, lat, h, h_err, g_err])
 
 

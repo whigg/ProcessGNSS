@@ -2,7 +2,6 @@
 # 11/11/21
 # Use for: 
 # Comparison of two different GNSS instruments, Kinematic PPP (CSRS PROCESSED)
-# Comparison of two different GNSS instruments, Static PPP    (CSRS PROCESSED)
 # Comparison of GNSS Kinematic PPP (CSRS) & ICESAT-2 (.txt, icepyx)
 # Comparison of GNSS Static PPP (CSRS) & ICESAT-2    (.txt, icepyx)
 # Comparison of PPK GNSS (RTKLIB .pos) and ICESAT-2  (.txt, icepyx)
@@ -14,6 +13,7 @@ import argparse
 from geopy import distance
 from sklearn.neighbors import BallTree
 
+################## PARSE INPUTS ###########################
 def dir_path(string):
     if os.path.isfile(string):
         return string
@@ -28,12 +28,10 @@ parser.add_argument("type2", choices = ['Kin_PPP', 'Stat_PPP', 'ICESat-2', 'PPK'
 
 args = parser.parse_args()
 
-print(args.type)
-print(args.type2)
-print(args.file_1_path)
-
 file_path1 = os.path.join(args.file_1_path)
 file_path2 = os.path.join(args.file_2_path)
+file1_name = os.path.basename(file_path1)
+file2_name = os.path.basename(file_path2)
 
 if args.type == 'Kin_PPP':
     print("Parsing Kinematic PPP from CSRS")
@@ -62,8 +60,9 @@ elif args.type2 == 'ICESat-2':
     print("ICESat-2")
 elif args.type2 =='PPK':
     print("PPK")
+############################################################
 
-def getPseudoPrecision(lat, lon, h, plot=True):
+def get_PSP_stats(lat, lon, h, plot=True):
     """
     finds pseudostatic points and computes standard deviation
     A pseudostatic point is defined as a cluser of points whose
@@ -89,8 +88,7 @@ def getPseudoPrecision(lat, lon, h, plot=True):
                 temp_list.append(h[j+1])
                 j+=1
 
-            if len(temp_list) > 10 and len(temp_list) < 50:
-                # print("cluser found")
+            if len(temp_list) > 10 and len(temp_list) < 50: # cluster found
                 pseudostatic_points.append(temp_list)
                 location_PSP.append([lat[j], lon[j]])
             i = j # jump outside of cluster
@@ -108,7 +106,6 @@ def getPseudoPrecision(lat, lon, h, plot=True):
     if plot:
         ## Verify Data ## 
         location_PSP_transformed = np.asarray(location_PSP).T
-        print(location_PSP_transformed)
         plt.scatter(lon, lat, c='b')
         plt.scatter(location_PSP_transformed[1], location_PSP_transformed[0], c='r', s=20)
         plt.rcParams.update({'font.size': 14})
@@ -119,27 +116,28 @@ def getPseudoPrecision(lat, lon, h, plot=True):
 
     return number_PSP, mean_1sigma
 
-def getInterPrecision(lat1, lon1, h1, lat2, lon2, h2, search_distance, plot=True):
+def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, plot=True):
     """
-    Find nearest neighbor between dataset 1 and dataset 2 points
-    Get residual between these two points
-    Calculate standard deviation
-    Return (1) residuals (2) standard deviation of residuals 
+    - INPUTS: lat1/lon1/h1: single coordinate or lists; lat2/lon2/h2: list of coordinates; search_distance = 
+        how close points need to be as "neighbors"
+    - Find nearest neighbor between dataset 1 and dataset 2 points
+    - Compute residuals & standard deviation of between these two points
+    - RETURN: (1) residuals (2) standard deviation of residuals 
     *** NOTE: lat1/lon1/h1 is considered "truth"
     """
-    minimum_distance = search_distance # in meters, minimum distance to be part of a stationary PSP
     residuals = []
     residual_locations = []
-    i = 0
-    print("lat1" , len(lat1))
-    print("lat2", len(lat2))
+
+    print("lat1 n#" , len(lat1))
+    print("lat2 n#", len(lat2))
+
     array = np.asarray((lat1, lon1)).T
     array2 = np.asarray((lat2, lon2)).T
+
     tree = BallTree(array2, metric='euclidean')
     distances, indices = tree.query(array, k =1)
 
     lst = ["|","/","-","\\"]
-    distances = []
     for i in range(0, len(lat1)):
         print(lst[i % 4], end="\r")
         
@@ -148,10 +146,8 @@ def getInterPrecision(lat1, lon1, h1, lat2, lon2, h2, search_distance, plot=True
             residual_locations.append([lat1[i], lon1[i]])
 
     number_residuals = len(residuals)
-    
     res_sigma = np.std(residuals)
-
-    print(np.mean(residuals))
+    res_mean = np.mean(residuals)
 
     if plot:
         ## Verify Data ## 
@@ -165,19 +161,55 @@ def getInterPrecision(lat1, lon1, h1, lat2, lon2, h2, search_distance, plot=True
         plt.title("Found Pairs within %.3f m" % search_distance)    
         plt.show()
 
-    return number_residuals, res_sigma
+        plt.hist(np.asarray(residuals), bins=50, histtype='step')
+        plt.show()
 
+
+    return number_residuals, res_mean, res_sigma
+
+def nearest_neighbor_compare_radius(lat1, lon1, h1, lat2, lon2, h2, radius):
+    """
+    - INPUTS: lat1/lon1/h1: single coordinate; lat2/lon2/h2: list of coordinates; search_distance = 
+        how close points need to be as "neighbors"
+    - Find points relative to lat/lon 1 within radius r 
+    - RETURN: (1) residuals (2) standard deviation of residuals 
+    *** NOTE: lat1/lon1/h1 is considered "truth"
+    """
+
+    lon_radius = []
+    lat_radius = []
+    height_radius = []
+
+    for i in range(0, len(lat1)):
+        d = distance.distance((lat1, lon1), (lat2[i], lon2[i])).meters
+        if d < radius:
+            lat_radius.append(lat2[i])
+            lon_radius.append(lon2[i])
+            height_radius.append(h2[i])
+
+    if len(height_radius) == 0:
+        print("no points in vicinity")
+    else:
+        print("number of points found: ", len(height_radius))
+        plt.scatter(lon_radius, lat_radius, c=height_radius)
+        plt.scatter(lon1, lat1, c='r')
+        plt.rcParams.update({'font.size': 14})
+        plt.xlabel('Longitude ($^o$)', fontsize=14, fontweight='bold')
+        plt.ylabel('Latitude ($^o$)', fontsize=14, fontweight='bold') 
+        plt.colorbar()
+        plt.show()
 
 
 ############# PSEUDOSTATIC COMPARE
-# num_PSP, mean = getPseudoPrecision(lattitudes1, longitudes1, ellipsoidal_heights1)
-# num_PSP2, mean2 = getPseudoPrecision(lattitudes2, longitudes2, ellipsoidal_heights2)
+num_PSP, mean = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, False)
+num_PSP2, mean2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, False)
 
-# print("Data set 1 # PSPs: ", num_PSP)
-# print("Data set 1 mean of 1sigma: ", mean)
-# print("Data set 2 # PSPs: ", num_PSP2)
-# print("Data set 2 mean of 1sigma: ", mean2)
+print("Data set 1 # PSPs: ", num_PSP)
+print("Data set 1 mean of 1sigma: ", mean)
+print("Data set 2 # PSPs: ", num_PSP2)
+print("Data set 2 mean of 1sigma: ", mean2)
 
-num_residuals, res_sigma = getInterPrecision(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1)
-print("num residuals", num_residuals)
+number_residuals, res_mean, res_sigma = nearest_neighbor_compare(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1, True)
+print("num residuals", number_residuals)
 print("res_sigma", res_sigma)
+print("res_mean", res_mean)

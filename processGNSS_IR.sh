@@ -2,7 +2,7 @@
 #converts whatever file is in directory to proper name/format etc. 
 
 #CORE DIRECTORIES - CHANGE ACCORDINGLY
-GNSSDIR="/Users/derekpickell/Documents/Workspaces/GNSSIR/"
+GNSSDIR="/Users/derek/Documents/GNSSIR/"
 BASEDIR=$(pwd)
 export EXE=$GNSSDIR"/exe"
 export REFL_CODE=$GNSSDIR"/io"
@@ -24,7 +24,7 @@ echo moving file to GNSSIR folder directory: $RINEXDIR
 mkdir -p $RINEXDIR
 cp $filename $RINEXDIR
 
-cd $GNSSDIR"/gnssrefl"
+cd $GNSSDIR"/gnssrefl/gnssrefl"
 source env/bin/activate
 doy=$(ymd $year $month $day)
 rename=$station$doy"0."$yearShort"o"

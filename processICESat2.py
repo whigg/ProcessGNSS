@@ -25,7 +25,7 @@ def track_type(time, lat, tmax=1):
     tracks[0:np.argmax(np.abs(lat))] = 1  # set values for segment
     i_asc = np.zeros(tracks.shape, dtype=bool)  # output index array
 
-    # Loop through individual secments
+    # Loop through individual segments
     for track in np.unique(tracks):
     
         i_track, = np.where(track == tracks)  # get all pts from seg

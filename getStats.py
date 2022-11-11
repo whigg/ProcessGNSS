@@ -12,6 +12,7 @@ import os
 import matplotlib.pyplot as plt
 import argparse
 from geopy import distance
+from sklearn.neighbors import BallTree
 
 def dir_path(string):
     if os.path.isfile(string):
@@ -106,19 +107,19 @@ def getPseudoPrecision(lat, lon, h, plot=True):
 
     if plot:
         ## Verify Data ## 
-        location_PSP.T
+        location_PSP_transformed = np.asarray(location_PSP).T
+        print(location_PSP_transformed)
         plt.scatter(lon, lat, c='b')
-        plt.scatter(location_PSP[0], location_PSP[1], c='r', s=20)
+        plt.scatter(location_PSP_transformed[1], location_PSP_transformed[0], c='r', s=20)
         plt.rcParams.update({'font.size': 14})
         plt.xlabel('Longitude', fontsize=14, fontweight='bold')
         plt.ylabel('Latitude', fontsize=14, fontweight='bold')
         plt.title("Location of PSPs")    
-        plt.colorbar()
         plt.show()
 
     return number_PSP, mean_1sigma
 
-def getInterPrecision(lat1, lon1, h1, lat2, lon2, h2, search_distance):
+def getInterPrecision(lat1, lon1, h1, lat2, lon2, h2, search_distance, plot=True):
     """
     Find nearest neighbor between dataset 1 and dataset 2 points
     Get residual between these two points
@@ -130,27 +131,41 @@ def getInterPrecision(lat1, lon1, h1, lat2, lon2, h2, search_distance):
     residuals = []
     residual_locations = []
     i = 0
+    print("lat1" , len(lat1))
+    print("lat2", len(lat2))
+    array = np.asarray((lat1, lon1)).T
+    array2 = np.asarray((lat2, lon2)).T
+    tree = BallTree(array2, metric='euclidean')
+    distances, indices = tree.query(array, k =1)
 
+    lst = ["|","/","-","\\"]
+    distances = []
     for i in range(0, len(lat1)):
-
-        distances = []
-        for j in range(0, len(lat2)):
-            distances.append(distance.distance((lat1[i], lon1[i]), (lat2[j], lon2[j])).meters)
+        print(lst[i % 4], end="\r")
         
-        if min(distances) < minimum_distance:
-            min_index = distances.index(min(distances))
-            residuals.append([h1[i] - h2[min_index], min_index])
-            residual_locations.append([lat1[i], lat2[i]])
+        if distance.distance((lat1[i], lon1[i]), (lat2[indices[i]], lon2[indices[i]])).meters < search_distance:
+            residuals.append(h1[i] - h2[indices[i]])
+            residual_locations.append([lat1[i], lon1[i]])
 
     number_residuals = len(residuals)
     
-    stdvs = []
-    for i in range(0, number_residuals):
-        stdvs.append(np.std(residuals[i], axes=0))
+    res_sigma = np.std(residuals)
 
-    mean_1sigma = np.mean(stdvs)
+    print(np.mean(residuals))
 
-    return number_residuals, mean_1sigma
+    if plot:
+        ## Verify Data ## 
+        residual_locations_transformed = np.asarray(residual_locations).T
+        plt.scatter(lon1, lat1, c='r', s=20)
+        plt.scatter(lon2, lat2, c='b', s=20)
+        plt.scatter(residual_locations_transformed[1], residual_locations_transformed[0], c='g', s=5)
+        plt.rcParams.update({'font.size': 14})
+        plt.xlabel('Longitude', fontsize=14, fontweight='bold')
+        plt.ylabel('Latitude', fontsize=14, fontweight='bold')
+        plt.title("Found Pairs within %.3f m" % search_distance)    
+        plt.show()
+
+    return number_residuals, res_sigma
 
 
 
@@ -163,4 +178,6 @@ def getInterPrecision(lat1, lon1, h1, lat2, lon2, h2, search_distance):
 # print("Data set 2 # PSPs: ", num_PSP2)
 # print("Data set 2 mean of 1sigma: ", mean2)
 
-num_residuals, mean_res_sigma = getInterPrecision(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1)
+num_residuals, res_sigma = getInterPrecision(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1)
+print("num residuals", num_residuals)
+print("res_sigma", res_sigma)

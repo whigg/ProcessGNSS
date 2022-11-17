@@ -12,7 +12,7 @@ read filename
 echo Do you want to process RAW to RINEX? y/n
 read response
 
-BASEDIR=$(pwd)
+BASEDIR=$(dirname $0)
 CONVBINpath=$BASEDIR"/RTKLIB-demo5/app/consapp/convbin/gcc"
 RNX2RTKPpath=$BASEDIR"/RTKLIB-demo5/app/consapp/rnx2rtkp/gcc"
 

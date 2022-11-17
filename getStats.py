@@ -35,31 +35,51 @@ file2_name = os.path.basename(file_path2)
 
 if args.type == 'Kin_PPP':
     print("Parsing Kinematic PPP from CSRS")
-    data = np.genfromtxt(file_path1, delimiter=',', skip_header=1, usecols=(0, 1, 2)).T
+    data = np.genfromtxt(file_path1, delimiter=',', skip_header=1, usecols=(0, 1, 2, 3)).T
     lattitudes1 = data[0]
     longitudes1 = data[1]
     ellipsoidal_heights1 = data[2]
+    decimal_hour1 = data[3]
 
 elif args.type == 'Stat_PPP':
     print("Static PPP")
 elif args.type == 'ICESat-2':
     print("ICESat-2")
 elif args.type =='PPK':
-    print("PPK")
+    """
+    Parses Data from Emlid Studio RTKLIB, First 10 rows are metadata, lat/lon decimal degrees
+    Filter for fixed solution only
+    """
+    print("Parsing PPK from RTKLIB")
+    data = np.genfromtxt(file_path1, delimiter=None, skip_header=10, usecols=(1, 2, 3, 4, 5)).T
+    fixed_flag1 = data[4]
+    fixed = np.where(fixed_flag1 == 1, True, False)
+    lattitudes1 = data[1][fixed]
+    longitudes1 = data[2][fixed]
+    ellipsoidal_heights1 = data[3][fixed]
+    decimal_hour1 = data[0][fixed]
 
 if args.type2 == 'Kin_PPP':
     print("Parsing Kinematic PPP from CSRS")
-    data2 = np.genfromtxt(file_path2, delimiter=',', skip_header=1, usecols=(0, 1, 2)).T
-    lattitudes2 = data2[0]
-    longitudes2 = data2[1]
-    ellipsoidal_heights2 = data2[2]
-    
+    data = np.genfromtxt(file_path2, delimiter=',', skip_header=1, usecols=(0, 1, 2, 3)).T
+    lattitudes2 = data[0]
+    longitudes2 = data[1]
+    ellipsoidal_heights2 = data[2]
+    decimal_hour2 = data[3]
 elif args.type2 == 'Stat_PPP':
     print("Static PPP")
 elif args.type2 == 'ICESat-2':
     print("ICESat-2")
 elif args.type2 =='PPK':
-    print("PPK")
+    print("Parsing PPK from RTKLIB")
+    data = np.genfromtxt(file_path2, delimiter=None, skip_header=10, usecols=(1, 2, 3, 4, 5)).T
+    fixed_flag2 = data[4]
+    fixed = np.where(fixed_flag2 == 1, True, False)
+    lattitudes2 = data[1][fixed]
+    longitudes2 = data[2][fixed]
+    ellipsoidal_heights2 = data[3][fixed]
+    decimal_hour2 = data[0][fixed]
+
 ############################################################
 
 def get_PSP_stats(lat, lon, h, plot=True):
@@ -148,20 +168,58 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, pl
     number_residuals = len(residuals)
     res_sigma = np.std(residuals)
     res_mean = np.mean(residuals)
+    new = [i for i in residuals if -1.7<i<-1.1]
+    new_sigma = np.std(new)
+    print(new_sigma)
 
     if plot:
         ## Verify Data ## 
+        # plot where the residuals are, on top of original GPS points
+        a = plt.figure(1)
         residual_locations_transformed = np.asarray(residual_locations).T
-        plt.scatter(lon1, lat1, c='r', s=20)
-        plt.scatter(lon2, lat2, c='b', s=20)
-        plt.scatter(residual_locations_transformed[1], residual_locations_transformed[0], c='g', s=5)
+        plt.scatter(lon1, lat1, c='k', s=20, marker="o", label="dataset 1")
+        plt.scatter(lon2, lat2, c='dimgray', s=20, marker="|", label="dataset 2")
+        plt.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker="x", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=-1.2, vmax=-1.9, s=5)
         plt.rcParams.update({'font.size': 14})
         plt.xlabel('Longitude', fontsize=14, fontweight='bold')
         plt.ylabel('Latitude', fontsize=14, fontweight='bold')
-        plt.title("Found Pairs within %.3f m" % search_distance)    
-        plt.show()
+        plt.title("Found Pairs within %.2f m" % search_distance)
+        plt.legend()    
+        plt.colorbar(label='residuals (m)')
+        a.show()
 
-        plt.hist(np.asarray(residuals), bins=50, histtype='step')
+        # plot histogram of residuals
+        b = plt.figure(2)
+        plt.hist(np.asarray(residuals), bins=100, histtype='step', range=(-2, -1))
+        plt.xlabel("residuals (m)")
+        # plt.xlim([-1.1, -2])
+        b.show()
+
+        # plot where the residuals are far from the mean residual
+        c = plt.figure(3)
+        outliers = []
+        outliers_locations = []
+        for i in range(0, len(residuals)):
+            if residuals[i] > -1.3:
+                outliers.append(residuals[i])
+                outliers_locations.append(residual_locations[i])
+        outliers_lcations_transformed = np.asarray(outliers_locations).T
+        colors = np.ndarray.flatten(np.asarray(outliers))
+        plt.scatter(lon1, lat1, c='y', s=1)
+        plt.scatter(outliers_lcations_transformed[1], outliers_lcations_transformed[0], c=colors, cmap='jet', s=5)
+        plt.colorbar(label='residuals (m)')
+        plt.title("Outlier Residual Locations")
+        plt.xlabel('Longitude', fontsize=14, fontweight='bold')
+        plt.ylabel('Latitude', fontsize=14, fontweight='bold')
+        c.show()
+
+        # plot elevation data through time both datasets
+        d = plt.figure(4)
+        plt.scatter(decimal_hour1, ellipsoidal_heights1+1.6, s=1, label="dataset 1")
+        plt.scatter(decimal_hour2, ellipsoidal_heights2, s=1, label="dataset 2")
+        plt.legend()
+        d.show()
+
         plt.show()
 
 
@@ -201,13 +259,13 @@ def nearest_neighbor_compare_radius(lat1, lon1, h1, lat2, lon2, h2, radius):
 
 
 ############# PSEUDOSTATIC COMPARE
-num_PSP, mean = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, False)
-num_PSP2, mean2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, False)
+# num_PSP, mean = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, False)
+# num_PSP2, mean2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, False)
 
-print("Data set 1 # PSPs: ", num_PSP)
-print("Data set 1 mean of 1sigma: ", mean)
-print("Data set 2 # PSPs: ", num_PSP2)
-print("Data set 2 mean of 1sigma: ", mean2)
+# print("Data set 1 # PSPs: ", num_PSP)
+# print("Data set 1 mean of 1sigma: ", mean)
+# print("Data set 2 # PSPs: ", num_PSP2)
+# print("Data set 2 mean of 1sigma: ", mean2)
 
 number_residuals, res_mean, res_sigma = nearest_neighbor_compare(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1, True)
 print("num residuals", number_residuals)

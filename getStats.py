@@ -136,7 +136,7 @@ def get_PSP_stats(lat, lon, h, plot=True):
 
     return number_PSP, mean_1sigma
 
-def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, plot=True):
+def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2, plot=True):
     """
     - INPUTS: lat1/lon1/h1: single coordinate or lists; lat2/lon2/h2: list of coordinates; search_distance = 
         how close points need to be as "neighbors"
@@ -145,6 +145,10 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, pl
     - RETURN: (1) residuals (2) standard deviation of residuals 
     *** NOTE: lat1/lon1/h1 is considered "truth"
     """
+    # correct for antenna heights
+    h1 = h1 - bias1
+    h2 = h2 - bias2
+
     residuals = []
     residual_locations = []
 
@@ -168,9 +172,10 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, pl
     number_residuals = len(residuals)
     res_sigma = np.std(residuals)
     res_mean = np.mean(residuals)
-    new = [i for i in residuals if -1.7<i<-1.1]
+    new = [i for i in residuals if -.2<i<.2] # HARD CODED NUMBERS FIX
     new_sigma = np.std(new)
-    print(new_sigma)
+    print("filtered sigma: ", new_sigma)
+    print("median: ", np.median(residuals))
 
     if plot:
         ## Verify Data ## 
@@ -179,7 +184,7 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, pl
         residual_locations_transformed = np.asarray(residual_locations).T
         plt.scatter(lon1, lat1, c='k', s=20, marker="o", label="dataset 1")
         plt.scatter(lon2, lat2, c='dimgray', s=20, marker="|", label="dataset 2")
-        plt.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker="x", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=-1.2, vmax=-1.9, s=5)
+        plt.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker="x", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=res_mean-1.5*res_sigma, vmax=res_mean+1.5*res_sigma, s=5)
         plt.rcParams.update({'font.size': 14})
         plt.xlabel('Longitude', fontsize=14, fontweight='bold')
         plt.ylabel('Latitude', fontsize=14, fontweight='bold')
@@ -190,7 +195,7 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, pl
 
         # plot histogram of residuals
         b = plt.figure(2)
-        plt.hist(np.asarray(residuals), bins=100, histtype='step', range=(-2, -1))
+        plt.hist(np.asarray(residuals), bins=100, histtype='step') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
         plt.xlabel("residuals (m)")
         # plt.xlim([-1.1, -2])
         b.show()
@@ -200,7 +205,7 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, pl
         outliers = []
         outliers_locations = []
         for i in range(0, len(residuals)):
-            if residuals[i] > -1.3:
+            if residuals[i] > res_mean + 2*res_sigma or residuals[i] < res_mean - .5*res_sigma:
                 outliers.append(residuals[i])
                 outliers_locations.append(residual_locations[i])
         outliers_lcations_transformed = np.asarray(outliers_locations).T
@@ -215,8 +220,8 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, pl
 
         # plot elevation data through time both datasets
         d = plt.figure(4)
-        plt.scatter(decimal_hour1, ellipsoidal_heights1+1.6, s=1, label="dataset 1")
-        plt.scatter(decimal_hour2, ellipsoidal_heights2, s=1, label="dataset 2")
+        plt.scatter(decimal_hour1, h1, s=1, label="dataset 1")
+        plt.scatter(decimal_hour2, h2, s=1, label="dataset 2")
         plt.legend()
         d.show()
 
@@ -257,7 +262,9 @@ def nearest_neighbor_compare_radius(lat1, lon1, h1, lat2, lon2, h2, radius):
         plt.colorbar()
         plt.show()
 
-
+# bias = distance from antenna base to compacted snow
+bias2 = (.0175 + .015)/2 + 1.797 
+bias1 = .245
 ############# PSEUDOSTATIC COMPARE
 # num_PSP, mean = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, False)
 # num_PSP2, mean2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, False)
@@ -267,7 +274,7 @@ def nearest_neighbor_compare_radius(lat1, lon1, h1, lat2, lon2, h2, radius):
 # print("Data set 2 # PSPs: ", num_PSP2)
 # print("Data set 2 mean of 1sigma: ", mean2)
 
-number_residuals, res_mean, res_sigma = nearest_neighbor_compare(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1, True)
+number_residuals, res_mean, res_sigma = nearest_neighbor_compare(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1, bias1, bias2, True)
 print("num residuals", number_residuals)
 print("res_sigma", res_sigma)
 print("res_mean", res_mean)

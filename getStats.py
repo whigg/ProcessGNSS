@@ -99,7 +99,7 @@ def get_PSP_stats(lat, lon, h, plot=True):
 
     while i < len(lat) - 1:
         # get distance between first two points
-        d = distance.distance((lat[i], lon[i]), (lat[i+1], lon[i+1])).meters
+        d = distance.distance((lat[i], lon[i]), (lat[i+1], lon[i+1])).meters # distance.distance calculates great circle distance of ellipsoid WGS84
         if d < minimum_distance: # potential cluster found
             temp_list = []
             temp_list.append(h[i]) # append first point
@@ -128,10 +128,9 @@ def get_PSP_stats(lat, lon, h, plot=True):
         location_PSP_transformed = np.asarray(location_PSP).T
         plt.scatter(lon, lat, c='b')
         plt.scatter(location_PSP_transformed[1], location_PSP_transformed[0], c='r', s=20)
-        plt.rcParams.update({'font.size': 14})
-        plt.xlabel('Longitude', fontsize=14, fontweight='bold')
-        plt.ylabel('Latitude', fontsize=14, fontweight='bold')
-        plt.title("Location of PSPs")    
+        plt.xlabel('Longitude', fontsize=12, fontweight='light', fontname='Baskerville')
+        plt.ylabel('Latitude', fontsize=12, fontweight='light', fontname='Baskerville')
+        plt.title(f"Location of PSPs (n={number_PSP})", fontsize=14, fontweight='bold', fontname='Baskerville')    
         plt.show()
 
     return number_PSP, mean_1sigma
@@ -172,36 +171,40 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bi
     number_residuals = len(residuals)
     res_sigma = np.std(residuals)
     res_mean = np.mean(residuals)
-    new = [i for i in residuals if -.2<i<.2] # HARD CODED NUMBERS FIX
+    res_median = np.median(residuals)
+    new = [i for i in residuals if res_mean - 2* res_sigma<i<res_mean + 2*res_sigma] 
     new_sigma = np.std(new)
     print("filtered sigma: ", new_sigma)
-    print("median: ", np.median(residuals))
 
     if plot:
         ## Verify Data ## 
         # plot where the residuals are, on top of original GPS points
-        a = plt.figure(1)
+        fig0, ax_a = plt.subplots()
         residual_locations_transformed = np.asarray(residual_locations).T
-        plt.scatter(lon1, lat1, c='k', s=20, marker="o", label="dataset 1")
-        plt.scatter(lon2, lat2, c='dimgray', s=20, marker="|", label="dataset 2")
-        plt.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker="x", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=res_mean-1.5*res_sigma, vmax=res_mean+1.5*res_sigma, s=5)
-        plt.rcParams.update({'font.size': 14})
-        plt.xlabel('Longitude', fontsize=14, fontweight='bold')
-        plt.ylabel('Latitude', fontsize=14, fontweight='bold')
-        plt.title("Found Pairs within %.2f m" % search_distance)
+        ax_a.scatter(lon1, lat1, c='k', s=20, marker="o", label="dataset 1")
+        ax_a.scatter(lon2, lat2, c='dimgray', s=20, marker="|", label="dataset 2")
+        m = ax_a.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker="x", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=res_mean-1.5*res_sigma, vmax=res_mean+1.5*res_sigma, s=5)
+        ax_a.set_xlabel('Longitude', fontsize=14, fontweight='bold')
+        ax_a.set_ylabel('Latitude', fontsize=14, fontweight='bold')
+        ax_a.set_title("Found Pairs within %.2f m" % search_distance)
         plt.legend()    
-        plt.colorbar(label='residuals (m)')
-        a.show()
+        fig0.colorbar(m, label='residuals (m)')
+        fig0.show()
 
         # plot histogram of residuals
-        b = plt.figure(2)
-        plt.hist(np.asarray(residuals), bins=100, histtype='step') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
-        plt.xlabel("residuals (m)")
-        # plt.xlim([-1.1, -2])
-        b.show()
+        fig1, ax_b = plt.subplots()
+        ax_b.hist(np.asarray(residuals)*100, bins=50, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
+        ax_b.minorticks_on()
+        ax_b.tick_params(bottom=True, right=True, left=True, top=True, which='minor') 
+        ax_b.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
+        ax_b.tick_params(labeltop=False, labelright=False, labelbottom=True, labelleft=True) 
+        ax_b.set_title(f"Median Residual: {res_median*100:.1f}cm and 1\u03C3 SD: {res_sigma*100:.1f}cm", fontsize=14, fontname='Baskerville')
+        ax_b.set_xlabel("Elevation Residual (cm)", fontsize=11, fontname='Baskerville', fontweight='light')
+        ax_b.set_ylabel("Counts", fontsize=11, fontname='Baskerville', fontweight='light')
+        fig1.show()
 
         # plot where the residuals are far from the mean residual
-        c = plt.figure(3)
+        fig2, ax_c = plt.subplots()
         outliers = []
         outliers_locations = []
         for i in range(0, len(residuals)):
@@ -210,25 +213,24 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bi
                 outliers_locations.append(residual_locations[i])
         outliers_lcations_transformed = np.asarray(outliers_locations).T
         colors = np.ndarray.flatten(np.asarray(outliers))
-        plt.scatter(lon1, lat1, c='y', s=1)
-        plt.scatter(outliers_lcations_transformed[1], outliers_lcations_transformed[0], c=colors, cmap='jet', s=5)
-        plt.colorbar(label='residuals (m)')
-        plt.title("Outlier Residual Locations")
-        plt.xlabel('Longitude', fontsize=14, fontweight='bold')
-        plt.ylabel('Latitude', fontsize=14, fontweight='bold')
-        c.show()
+        ax_c.scatter(lon1, lat1, c='y', s=1)
+        n = ax_c.scatter(outliers_lcations_transformed[1], outliers_lcations_transformed[0], c=colors, cmap='jet', s=5)
+        fig2.colorbar(n, label='residuals (m)')
+        ax_c.set_title("Outlier Residual Locations")
+        ax_c.set_xlabel('Longitude', fontsize=14, fontweight='bold')
+        ax_c.set_ylabel('Latitude', fontsize=14, fontweight='bold')
+        fig2.show()
 
         # plot elevation data through time both datasets
-        d = plt.figure(4)
-        plt.scatter(decimal_hour1, h1, s=1, label="dataset 1")
-        plt.scatter(decimal_hour2, h2, s=1, label="dataset 2")
+        fig3, ax_c = plt.subplots()
+        ax_c.scatter(decimal_hour1, h1, s=1, label="dataset 1")
+        ax_c.scatter(decimal_hour2, h2, s=1, label="dataset 2")
         plt.legend()
-        d.show()
+        fig3.show()
 
         plt.show()
 
-
-    return number_residuals, res_mean, res_sigma
+    return number_residuals, res_median, res_sigma
 
 def nearest_neighbor_compare_radius(lat1, lon1, h1, lat2, lon2, h2, radius):
     """
@@ -262,19 +264,20 @@ def nearest_neighbor_compare_radius(lat1, lon1, h1, lat2, lon2, h2, radius):
         plt.colorbar()
         plt.show()
 
+
 # bias = distance from antenna base to compacted snow
-bias2 = (.0175 + .015)/2 + 1.797 
-bias1 = .245
+bias2 =  1.797 + (.0175+.015)/2
+bias1 = .245 + (.0175+.015)/2
 ############# PSEUDOSTATIC COMPARE
-# num_PSP, mean = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, False)
-# num_PSP2, mean2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, False)
+num_PSP, mean = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, False)
+num_PSP2, mean2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, True)
 
-# print("Data set 1 # PSPs: ", num_PSP)
-# print("Data set 1 mean of 1sigma: ", mean)
-# print("Data set 2 # PSPs: ", num_PSP2)
-# print("Data set 2 mean of 1sigma: ", mean2)
+print("Data set 1 # PSPs: ", num_PSP)
+print("Data set 1 mean of 1sigma: ", mean)
+print("Data set 2 # PSPs: ", num_PSP2)
+print("Data set 2 mean of 1sigma: ", mean2)
 
-number_residuals, res_mean, res_sigma = nearest_neighbor_compare(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1, bias1, bias2, True)
+number_residuals, res_median, res_sigma = nearest_neighbor_compare(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1, bias1, bias2, True)
+print("res_sigma    ", res_sigma)
+print("res_median   ", res_median)
 print("num residuals", number_residuals)
-print("res_sigma", res_sigma)
-print("res_mean", res_mean)

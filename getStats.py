@@ -57,7 +57,7 @@ elif args.type =='PPK':
     lattitudes1 = data[1][fixed]
     longitudes1 = data[2][fixed]
     ellipsoidal_heights1 = data[3][fixed]
-    decimal_hour1 = data[0][fixed]
+    decimal_hour1 = data[0][fixed]  * 3600 - 162800
 
 if args.type2 == 'Kin_PPP':
     print("Parsing Kinematic PPP from CSRS")
@@ -78,7 +78,7 @@ elif args.type2 =='PPK':
     lattitudes2 = data[1][fixed]
     longitudes2 = data[2][fixed]
     ellipsoidal_heights2 = data[3][fixed]
-    decimal_hour2 = data[0][fixed]
+    decimal_hour2 = data[0][fixed] * 3600 - 162800
 
 ############################################################
 
@@ -181,12 +181,12 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bi
         # plot where the residuals are, on top of original GPS points
         fig0, ax_a = plt.subplots()
         residual_locations_transformed = np.asarray(residual_locations).T
-        ax_a.scatter(lon1, lat1, c='k', s=20, marker="o", label="dataset 1")
-        ax_a.scatter(lon2, lat2, c='dimgray', s=20, marker="|", label="dataset 2")
+        ax_a.scatter(lon1, lat1, c='k', s=40, marker="o", label="dataset 1")
+        ax_a.scatter(lon2, lat2, c='dimgray', s=20, marker="o", label="dataset 2")
         m = ax_a.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker="x", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=res_mean-1.5*res_sigma, vmax=res_mean+1.5*res_sigma, s=5)
         ax_a.set_xlabel('Longitude', fontsize=14, fontweight='bold')
         ax_a.set_ylabel('Latitude', fontsize=14, fontweight='bold')
-        ax_a.set_title("Found Pairs within %.2f m" % search_distance)
+        ax_a.set_title("Found Pairs within %.2f m, n=%.2f" % (search_distance, len(residual_locations_transformed[0])))
         plt.legend()    
         fig0.colorbar(m, label='residuals (m)')
         fig0.show()
@@ -266,16 +266,16 @@ def nearest_neighbor_compare_radius(lat1, lon1, h1, lat2, lon2, h2, radius):
 
 
 # bias = distance from antenna base to compacted snow
-bias2 =  1.797 + (.0175+.015)/2
-bias1 = .245 + (.0175+.015)/2
+bias2 =  0 # 1.797 + (.0175+.015)/2
+bias1 = 0 # .245 + (.0175+.015)/2
 ############# PSEUDOSTATIC COMPARE
-num_PSP, mean = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, False)
-num_PSP2, mean2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, True)
+# num_PSP, mean = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, False)
+# num_PSP2, mean2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, True)
 
-print("Data set 1 # PSPs: ", num_PSP)
-print("Data set 1 mean of 1sigma: ", mean)
-print("Data set 2 # PSPs: ", num_PSP2)
-print("Data set 2 mean of 1sigma: ", mean2)
+# print("Data set 1 # PSPs: ", num_PSP)
+# print("Data set 1 mean of 1sigma: ", mean)
+# print("Data set 2 # PSPs: ", num_PSP2)
+# print("Data set 2 mean of 1sigma: ", mean2)
 
 number_residuals, res_median, res_sigma = nearest_neighbor_compare(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1, bias1, bias2, True)
 print("res_sigma    ", res_sigma)

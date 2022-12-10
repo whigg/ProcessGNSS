@@ -8,7 +8,7 @@ import os
 import matplotlib.pyplot as plt
 import argparse
 
-print("CSV must be in format SN#, Date, Height (m), 95%, Uncertainty (m) ... ")
+print("CSV must be in format Date, Height (m), 95%, Uncertainty (m) ... ")
 def dir_path(string):
     if os.path.isfile(string):
         return string
@@ -24,9 +24,8 @@ file1_name = os.path.basename(file_path1)
 
 print("Parsing CSV")
 data = np.genfromtxt(file_path1, delimiter=",", skip_header=1).T
-SN = data[0]
-heights = data[2]
-uncertainties = data[4]
+heights = data[1]
+uncertainties = data[2] 
 increment = np.arange(1, len(heights)+1)
 
 ######## PPP Static 24 Hours 
@@ -34,7 +33,7 @@ fig, ax = plt.subplots()
 ax.set_title("Static Solution Time Series (24hr solution each)", fontsize=14, fontname='Baskerville', fontweight='bold')
 ax.set_ylabel("ITRF Height (m) Referenced to WGS84", fontsize=12, fontname='Baskerville')
 ax.scatter(increment, heights)
-ax.axhline(np.median(heights), color='red', lw=1, ls='--', label=f'median elevation {np.mean(heights):.1f}m')
+ax.axhline(np.median(heights), color='red', lw=1, ls='--', label=f'median elevation {np.mean(heights):.3f}m')
 ax.ticklabel_format(useOffset=False)
 plt.errorbar(increment, heights, yerr=uncertainties, fmt='o', color='xkcd:navy')
 plt.legend()
@@ -49,7 +48,7 @@ ax2.set_title("Histogram of Antenna Height Estimates", fontsize=14, fontname='Ba
 ax2.set_ylabel("Estimated Height (m)", fontsize=12, fontname='Baskerville')
 ax2.set_xlabel("Counts", fontsize=12, fontname='Baskerville')
 ax2.axhline(mean_IR_height, color='red', lw=3, ls='-', label=f'mean height {mean_IR_height:.1f}m')
-ax2.axhline(mean_IR_height + np.std(IR_heights), color='red', lw=1, ls='--', label=f'1 \u03C3 {np.std(IR_heights):.1f}m')
+ax2.axhline(mean_IR_height + np.std(IR_heights), color='red', lw=1, ls='--', label=f'1 \u03C3 {np.std(IR_heights):.2f}m')
 ax2.axhline(mean_IR_height - np.std(IR_heights), color='red', lw=1, ls='--')
 
 plt.legend()

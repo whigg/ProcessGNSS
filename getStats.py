@@ -163,6 +163,8 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bi
 
     residuals = []
     residual_locations = []
+    hi1 = []
+    hi2 = []
 
     print("lat1 n#                     " , len(lat1))
     print("lat2 n#                     ", len(lat2))
@@ -180,12 +182,14 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bi
         if distance.distance((lat1[i], lon1[i]), (lat2[indices[i]], lon2[indices[i]])).meters < search_distance:
             residuals.append(h1[i] - h2[indices[i]])
             residual_locations.append([lat1[i], lon1[i]])
+            hi1.append(h1[i])
+            hi2.append(h2[indices[i]])
 
     number_residuals = len(residuals)
     res_sigma = np.std(residuals)
     res_mean = np.mean(residuals)
     res_median = np.median(residuals)
-    new = [i for i in residuals if res_mean - 3* res_sigma<i<res_mean + 3*res_sigma] 
+    new = [i for i in residuals if res_mean - 2.2* res_sigma<i<res_mean + 2.2*res_sigma] 
     new_sigma = np.std(new)
     print("filtered sigma:             ", new_sigma)
 
@@ -207,12 +211,12 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bi
 
         # plot histogram of residuals
         fig1, ax_b = plt.subplots()
-        ax_b.hist(np.asarray(residuals)*100, bins=50, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
+        ax_b.hist(np.asarray(new)*100, bins=50, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
         ax_b.minorticks_on()
         ax_b.tick_params(bottom=True, right=True, left=True, top=True, which='minor') 
         ax_b.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
         ax_b.tick_params(labeltop=False, labelright=False, labelbottom=True, labelleft=True) 
-        ax_b.set_title(f"Median Residual: {res_median*100:.1f}cm and 1\u03C3 SD: {res_sigma*100:.1f}cm", fontsize=14, fontname='Baskerville')
+        ax_b.set_title(f"Median Residual: {res_median*100:.1f}cm and 1\u03C3 SD: {new_sigma*100:.1f}cm", fontsize=14, fontname='Baskerville')
         ax_b.set_xlabel("Elevation Residual (cm)", fontsize=11, fontname='Baskerville', fontweight='light')
         ax_b.set_ylabel("Counts", fontsize=11, fontname='Baskerville', fontweight='light')
         fig1.show()
@@ -237,8 +241,8 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bi
 
         # plot elevation data through time both datasets
         fig3, ax_c = plt.subplots()
-        ax_c.scatter(decimal_hour1, h1, s=1, label="dataset 1")
-        ax_c.scatter(decimal_hour2, h2, s=1, label="dataset 2")
+        ax_c.scatter(np.arange(0, len(hi1), 1), hi1, s=1, label="dataset 1")
+        ax_c.scatter(np.arange(0, len(hi2), 1), hi2, s=1, label="dataset 2")
         plt.legend()
         fig3.show()
 
@@ -308,7 +312,7 @@ def get_residuals_at_PSPs(psp_array1, location_PSP1, psp_array2, location_PSP2):
 
 
     print("median residual between PSPs", np.median(PSP_residuals))
-    print("n=", len(PSP_residuals))
+    print("n=                          ", len(PSP_residuals))
     fig, ax = plt.subplots()
     fig0, ax_a = plt.subplots()
     res_mean = np.mean(PSP_residuals)
@@ -320,7 +324,8 @@ def get_residuals_at_PSPs(psp_array1, location_PSP1, psp_array2, location_PSP2):
     fig0.colorbar(m, label='residuals (m)')
     fig0.show()
 
-    ax.hist(np.asarray(PSP_residuals)*100, bins=40, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
+    new = [i for i in PSP_residuals if res_mean - 3* res_sigma<i<res_mean + 3*res_sigma] 
+    ax.hist(np.asarray(new)*100, bins=40, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
     ax.minorticks_on()
     ax.tick_params(bottom=True, right=True, left=True, top=True, which='minor') 
     ax.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
@@ -330,9 +335,10 @@ def get_residuals_at_PSPs(psp_array1, location_PSP1, psp_array2, location_PSP2):
     ax.set_ylabel("Counts", fontsize=11, fontname='Baskerville', fontweight='light')
     fig.show()
     plt.show()
+
 # bias = distance from antenna base to compacted snow
-bias1 =   0.245 + (.04+.06)/2   # DATASET 1
-bias2 =   1.797 + (.02+0.024)/2 # DATASET 2
+bias1 =   .245 + (1.88)/2 #0.245 + (.04+.06)/2   # SLED
+bias2 =   1.797 + (1.88)/2 # POLYPOD
 #################################################################
 ############# PSEUDOSTATIC COMPARE
 num_PSP, mean, psp_array1, location_PSP1 = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, False)

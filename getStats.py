@@ -11,7 +11,7 @@ import os
 import matplotlib.pyplot as plt
 import argparse
 from geopy import distance
-from sklearn.neighbors import BallTree
+from sklearn.neighbors import BallTree, DistanceMetric, NearestNeighbors
 
 ################## PARSE INPUTS ###########################
 def dir_path(string):
@@ -82,7 +82,7 @@ elif args.type2 =='PPK':
 
 ############################################################
 
-def get_PSP_stats(lat, lon, h, plot=True):
+def get_PSP_stats(lat, lon, h, bias, plot=True):
     """
     finds pseudostatic points and computes standard deviation
     A pseudostatic point is defined as a cluser of points whose
@@ -94,22 +94,33 @@ def get_PSP_stats(lat, lon, h, plot=True):
     """
     minimum_distance = 0.05 # in meters, minimum distance to be part of a stationary PSP
     pseudostatic_points = []
+    psp_full_locations = []
     location_PSP = []
     i = 0
 
+    # correct for antenna heights
+    h = h - bias
+
+    lst = ["|","/","-","\\"]
     while i < len(lat) - 1:
+        print(lst[i % 4], end="\r")
+
         # get distance between first two points
         d = distance.distance((lat[i], lon[i]), (lat[i+1], lon[i+1])).meters # distance.distance calculates great circle distance of ellipsoid WGS84
         if d < minimum_distance: # potential cluster found
             temp_list = []
+            temp_list_positions = []
             temp_list.append(h[i]) # append first point
+            temp_list_positions.append([lat[i], lon[i]])
             j = i
             while distance.distance((lat[j], lon[j]), (lat[j+1], lon[j+1])).meters < minimum_distance and j < len(lat) -2:
                 temp_list.append(h[j+1])
+                temp_list_positions.append([lat[j+1], lon[j+1]])
                 j+=1
 
-            if len(temp_list) > 10 and len(temp_list) < 50: # cluster found
+            if len(temp_list) > 7 and len(temp_list) < 100: # cluster found, 10-50 seconds
                 pseudostatic_points.append(temp_list)
+                psp_full_locations.extend(temp_list_positions)
                 location_PSP.append([lat[j], lon[j]])
             i = j # jump outside of cluster
 
@@ -122,18 +133,20 @@ def get_PSP_stats(lat, lon, h, plot=True):
         stdvs.append(np.std(pseudostatic_points[i]))
 
     mean_1sigma = np.mean(stdvs)
-
+    
     if plot:
         ## Verify Data ## 
         location_PSP_transformed = np.asarray(location_PSP).T
-        plt.scatter(lon, lat, c='b')
+        psp_full_locations_transformed = np.asarray(psp_full_locations).T
+        plt.scatter(lon, lat, c='b', s=5)
+        # plt.scatter(psp_full_locations_transformed[1], psp_full_locations_transformed[0], c='r', s=4)
         plt.scatter(location_PSP_transformed[1], location_PSP_transformed[0], c='r', s=20)
         plt.xlabel('Longitude', fontsize=12, fontweight='light', fontname='Baskerville')
         plt.ylabel('Latitude', fontsize=12, fontweight='light', fontname='Baskerville')
         plt.title(f"Location of PSPs (n={number_PSP})", fontsize=14, fontweight='bold', fontname='Baskerville')    
         plt.show()
 
-    return number_PSP, mean_1sigma
+    return number_PSP, mean_1sigma, pseudostatic_points, location_PSP
 
 def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2, plot=True):
     """
@@ -151,8 +164,8 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bi
     residuals = []
     residual_locations = []
 
-    print("lat1 n#" , len(lat1))
-    print("lat2 n#", len(lat2))
+    print("lat1 n#                     " , len(lat1))
+    print("lat2 n#                     ", len(lat2))
 
     array = np.asarray((lat1, lon1)).T
     array2 = np.asarray((lat2, lon2)).T
@@ -172,9 +185,10 @@ def nearest_neighbor_compare(lat1, lon1, h1, lat2, lon2, h2, search_distance, bi
     res_sigma = np.std(residuals)
     res_mean = np.mean(residuals)
     res_median = np.median(residuals)
-    new = [i for i in residuals if res_mean - 2* res_sigma<i<res_mean + 2*res_sigma] 
+    new = [i for i in residuals if res_mean - 3* res_sigma<i<res_mean + 3*res_sigma] 
     new_sigma = np.std(new)
-    print("filtered sigma: ", new_sigma)
+    print("filtered sigma:             ", new_sigma)
+
 
     if plot:
         ## Verify Data ## 
@@ -264,20 +278,76 @@ def nearest_neighbor_compare_radius(lat1, lon1, h1, lat2, lon2, h2, radius):
         plt.colorbar()
         plt.show()
 
+def get_residuals_at_PSPs(psp_array1, location_PSP1, psp_array2, location_PSP2):
+    """
+    computes the mean elevation at each PSP, 
+    and finds the residual if a nearby PSP exists 
+    from the second dataset
+    """
+    PSP_residuals = []
+    lat_PSP_resid = []
+    lon_PSP_resid = []
+    array = np.asarray(location_PSP1).T
+    array2 = np.asarray(location_PSP2).T
+    array = np.concatenate(([np.deg2rad(array[0])], [np.deg2rad(array[1])])).T
+    array2 = np.concatenate(([np.deg2rad(array2[0])], [np.deg2rad(array2[1])])).T
+    tree = BallTree(array2, metric='haversine')
+    distances2, indices = tree.query(array, k=1)
+    search_distance = 6 # meters
+    indices = np.ndarray.flatten(indices)
 
+    lst = ["|","/","-","\\"]
+    for i in range(0, len(location_PSP1)):
+        print(lst[i % 4], end="\r")
+        if distance.distance((location_PSP1[i][0], location_PSP1[i][1]), (location_PSP2[indices[i]][0], location_PSP2[indices[i]][1])).meters < search_distance:
+            mean1 = np.mean(psp_array1[i])
+            mean2 = np.mean(psp_array2[indices[i]])
+            PSP_residuals.append(mean1 - mean2)
+            lat_PSP_resid.append(location_PSP1[i][0])
+            lon_PSP_resid.append(location_PSP1[i][1])
+
+
+    print("median residual between PSPs", np.median(PSP_residuals))
+    print("n=", len(PSP_residuals))
+    fig, ax = plt.subplots()
+    fig0, ax_a = plt.subplots()
+    res_mean = np.mean(PSP_residuals)
+    res_sigma = np.std(PSP_residuals)
+    m = ax_a.scatter(lon_PSP_resid, lat_PSP_resid, marker="x", c=np.ndarray.flatten(np.asarray(PSP_residuals)), cmap='jet', vmin=res_mean-1.5*res_sigma, vmax=res_mean+1.5*res_sigma, s=5)
+    ax_a.set_xlabel('Longitude', fontsize=14, fontweight='bold')
+    ax_a.set_ylabel('Latitude', fontsize=14, fontweight='bold')
+    plt.legend()    
+    fig0.colorbar(m, label='residuals (m)')
+    fig0.show()
+
+    ax.hist(np.asarray(PSP_residuals)*100, bins=40, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
+    ax.minorticks_on()
+    ax.tick_params(bottom=True, right=True, left=True, top=True, which='minor') 
+    ax.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
+    ax.tick_params(labeltop=False, labelright=False, labelbottom=True, labelleft=True) 
+    ax.set_title(f"Median Residual: {np.median(PSP_residuals)*100:.1f}cm and 1\u03C3 SD: {np.std(PSP_residuals)*100:.1f}cm", fontsize=14, fontname='Baskerville')
+    ax.set_xlabel("Elevation Residual (cm)", fontsize=11, fontname='Baskerville', fontweight='light')
+    ax.set_ylabel("Counts", fontsize=11, fontname='Baskerville', fontweight='light')
+    fig.show()
+    plt.show()
 # bias = distance from antenna base to compacted snow
-bias2 =  0 # 1.797 + (.0175+.015)/2
-bias1 = 0 # .245 + (.0175+.015)/2
+bias1 =   0.245 + (.04+.06)/2   # DATASET 1
+bias2 =   1.797 + (.02+0.024)/2 # DATASET 2
+#################################################################
 ############# PSEUDOSTATIC COMPARE
-# num_PSP, mean = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, False)
-# num_PSP2, mean2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, True)
+num_PSP, mean, psp_array1, location_PSP1 = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, False)
+num_PSP2, mean2, psp_array2, location_PSP2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, False)
+get_residuals_at_PSPs(psp_array1, location_PSP1, psp_array2, location_PSP2)
+print("Data set 1 # PSPs:          ", num_PSP)
+print("Data set 1 mean of 1sigma:  ", mean)
+print("Data set 2 # PSPs:          ", num_PSP2)
+print("Data set 2 mean of 1sigma:  ", mean2)
 
-# print("Data set 1 # PSPs: ", num_PSP)
-# print("Data set 1 mean of 1sigma: ", mean)
-# print("Data set 2 # PSPs: ", num_PSP2)
-# print("Data set 2 mean of 1sigma: ", mean2)
+####################################################
+
 
 number_residuals, res_median, res_sigma = nearest_neighbor_compare(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, 1, bias1, bias2, True)
-print("res_sigma    ", res_sigma)
-print("res_median   ", res_median)
-print("num residuals", number_residuals)
+print("res_sigma                   ", res_sigma)
+print("res_median                  ", res_median)
+print("n=:                         ", number_residuals)
+

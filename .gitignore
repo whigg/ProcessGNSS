@@ -1,5 +1,7 @@
 tempData/
 exampleData/
 RTKLIB-demo5/
+processTrimble/teqc
+processTrimble/UNAVCO_Teqc_Tutorial.pdf
 .DS_Store
 *.atx

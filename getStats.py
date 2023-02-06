@@ -7,10 +7,10 @@
 # Comparison of PPK GNSS (RTKLIB .pos) and ICESAT-2  (.txt, icepyx)
 
 import numpy as np 
-import scipy
 import os
-import matplotlib.pyplot as plt
 import argparse
+import matplotlib.pyplot as plt
+from getStatsHelperFuncs import *
 from geopy import distance
 from sklearn.neighbors import BallTree
 
@@ -94,7 +94,6 @@ elif args.type2 =='PPK':
     longitudes2 = data[2][fixed]
     ellipsoidal_heights2 = data[3][fixed]
     decimal_hour2 = data[0][fixed] * 3600 - 162800
-
 ############################################################
 
 def get_PSP_stats(lat, lon, h, bias, plot=True):
@@ -108,9 +107,10 @@ def get_PSP_stats(lat, lon, h, bias, plot=True):
             (2) number of pseudostatic points
     """
     minimum_distance = 0.05 # in meters, minimum distance to be part of a stationary PSP
-    pseudostatic_points = []
+    vertical_stats = []
     psp_full_locations = []
-    location_PSP = []
+    horizontal_stats = []
+    centroids = []
     i = 0
 
     # correct for antenna heights
@@ -134,34 +134,26 @@ def get_PSP_stats(lat, lon, h, bias, plot=True):
                 j+=1
 
             if len(temp_list) > 7: # and len(temp_list) < 100: # cluster found, 10-50 seconds
-                pseudostatic_points.append(temp_list)
+                vertical_stats.append(np.std(temp_list))
                 psp_full_locations.extend(temp_list_positions)
-                location_PSP.append([lat[j], lon[j]])
+                horizontal_sd, centroid = calculateHorizontals(temp_list_positions)
+                horizontal_stats.append(horizontal_sd)
+                centroids.append(centroid)
             i = j # jump outside of cluster
 
         i +=1
 
-    number_PSP = len(pseudostatic_points)
-    
-    stdvs = []
-    for i in range(0, number_PSP):
-        stdvs.append(np.std(pseudostatic_points[i]))
+    # CALCULATE STATS IN Z 
+    number_PSP = len(vertical_stats)
+    mean_1_sigma_z = np.mean(vertical_stats)
 
-    mean_1sigma = np.mean(stdvs)
-    
-    if plot:
-        ## Verify Data ## 
-        location_PSP_transformed = np.asarray(location_PSP).T
-        psp_full_locations_transformed = np.asarray(psp_full_locations).T
-        plt.scatter(lon, lat, c='b', s=5)
-        # plt.scatter(psp_full_locations_transformed[1], psp_full_locations_transformed[0], c='r', s=4)
-        plt.scatter(location_PSP_transformed[1], location_PSP_transformed[0], c='r', s=20)
-        plt.xlabel('Longitude', fontsize=12, fontweight='light', fontname='Baskerville')
-        plt.ylabel('Latitude', fontsize=12, fontweight='light', fontname='Baskerville')
-        plt.title(f"Location of PSPs (n={number_PSP})", fontsize=14, fontweight='bold', fontname='Baskerville')    
-        plt.show()
+    # CALCULATE STATS IN X, Y
+    mean_1_sigma_xy = np.mean(horizontal_stats)
 
-    return number_PSP, mean_1sigma, pseudostatic_points, location_PSP
+    # psp_full_locations_transformed = np.asarray(psp_full_locations).T
+    if plot: plot_PSPs(lon, lat, centroids, psp_full_locations, number_PSP)
+        
+    return number_PSP, mean_1_sigma_z, mean_1_sigma_xy
 
 def get_residuals(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2, plot=True):
     """
@@ -202,7 +194,7 @@ def get_residuals(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2,
             prune_indices.append(indices[i])
 
     if len(residuals) == 0:
-        print("residuals found")
+        print("no residuals found")
         return
 
     #prune arrays for second iteration
@@ -228,67 +220,14 @@ def get_residuals(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2,
     res_sigma = np.std(residuals)
     res_mean = np.mean(residuals)
     res_median = np.median(residuals)
-    new = [i for i in residuals if res_mean - 3* res_sigma<i<res_mean + 3*res_sigma] 
-    new_sigma = np.std(new)
+    new_res_mean = [i for i in residuals if res_mean - 3* res_sigma<i<res_mean + 3*res_sigma] 
+    new_sigma = np.std(new_res_mean)
     # print("filtered sigma:             ", new_sigma)
 
     if plot:
         ## Verify Data ## 
-        # plot where the residuals are, on top of original GPS points
-        fig0, ax_a = plt.subplots()
-        residual_locations_transformed = np.asarray(residual_locations, dtype='object').T
-        ax_a.scatter(lon1, lat1, c='k', s=25, marker=".", label="dataset 1")
-        ax_a.scatter(lon2, lat2, c='dimgray', s=25, marker=".", label="dataset 2")
-        m = ax_a.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker=".", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=res_mean-3*res_sigma, vmax=res_mean+3*res_sigma, s=35)
-        ax_a.set_xlabel('Longitude', fontsize=14, fontweight='bold')
-        ax_a.set_ylabel('Latitude', fontsize=14, fontweight='bold')
-        ax_a.set_title("Found Pairs within %.2f m, n=%.2f" % (search_distance, len(residual_locations_transformed[0])))
-        plt.legend()    
-        fig0.colorbar(m, label='residuals (m)')
-        fig0.show()
-
-        # plot histogram of residuals
-        fig1, ax_b = plt.subplots()
-        ax_b.hist(np.asarray(new)*100, bins=50, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
-        ax_b.minorticks_on()
-        ax_b.tick_params(bottom=True, right=True, left=True, top=True, which='minor') 
-        ax_b.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
-        ax_b.tick_params(labeltop=False, labelright=False, labelbottom=True, labelleft=True) 
-        ax_b.set_title(f"Median Residual: {res_median*100:.1f}cm and 1\u03C3 SD: {new_sigma*100:.1f}cm \
-            \n skew: {scipy.stats.skew(new)}", fontsize=14, fontname='Baskerville')
-        ax_b.set_xlabel("Elevation Residual (cm)", fontsize=11, fontname='Baskerville', fontweight='light')
-        ax_b.set_ylabel("Counts", fontsize=11, fontname='Baskerville', fontweight='light')
-        fig1.show()
-
-        # plot where the residuals are far from the mean residual
-        fig2, ax_c = plt.subplots()
-        outliers = []
-        outliers_locations = []
-        for i in range(0, len(residuals)):
-            if residuals[i] < residuals[i] < res_mean + 3*res_sigma or residuals[i] < res_mean - 3*res_sigma:
-                outliers.append(residuals[i])
-                outliers_locations.append(residual_locations[i])
-        outliers_locations_transformed = np.asarray(outliers_locations, dtype='object').T
-        colors = np.ndarray.flatten(np.asarray(outliers))
-        ax_c.scatter(lon1, lat1, c='y', s=1)
-        ax_c.scatter(lon2, lat2, c='dimgray', s=1, marker="o")
-        if len(outliers)>0:
-            n = ax_c.scatter(outliers_locations_transformed[1], outliers_locations_transformed[0], c=colors, cmap='jet', s=5)
-            fig2.colorbar(n, label='residuals (m)')
-        ax_c.set_title("Outlier Residual Locations")
-        ax_c.set_xlabel('Longitude', fontsize=14, fontweight='bold')
-        ax_c.set_ylabel('Latitude', fontsize=14, fontweight='bold')
-        fig2.show()
-
-        # plot elevation data through time both datasets
-        fig3, ax_c = plt.subplots()
-        ax_c.scatter(np.arange(0, len(hi1), 1), hi1, s=1, label="dataset 1")
-        ax_c.scatter(np.arange(0, len(hi2), 1), hi2, s=1, label="dataset 2")
-        plt.legend()
-        fig3.show()
-
-        plt.show()
-
+        plot_residuals(residuals, residual_locations, search_distance, res_mean, new_res_mean, res_median, res_sigma, new_sigma, hi1, hi2 )
+        
     return number_residuals, res_median, res_sigma
 
 def get_residuals_radius(lat1, lon1, h1, lat2, lon2, h2, radius):
@@ -425,29 +364,33 @@ def get_residuals_no_PSPs(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1
     print("n: (pruned_PSPs)            ", number_residuals)
     
 
-
+#################################################################
 # bias = distance from antenna base to compacted snow [Polypod 1.797+snow depth; Sled: 0.245+snow depth]
 bias1 = 0
 bias2 =    .245 - .0825 #1.797 - 0.0825 - .046
 search_distance = 15 # meters
 #################################################################
-############# PSEUDOSTATIC COMPARE
-# num_PSP, mean, psp_array1, location_PSP1 = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, False)
-# num_PSP2, mean2, psp_array2, location_PSP2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, False)
-# print("")
+############# PSEUDOSTATIC COMPARE #############
+num_PSP, mean_1s_z, mean_1s_xy = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, True)
+# num_PSP2, mean2_1s_z,  mean2_1s_xy = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, False)
+print("")
+print("Dataset 1 # PSPs:           ", num_PSP)
+print("Dataset 1 mean of 1sigma z: ", mean_1s_z)
+print("Dataset 1 mean of 1s    xy: ", mean_1s_xy)
+# print("Dataset 2 # PSPs:           ", num_PSP2)
+# print("Dataset 2 mean of 1sigma z: ", mean2_1s_z)
+# print("Dataset 2 mean of 1s    xy: ", mean2_1s_xy)
+print("")
+############# RESIDUALS COMPARE #############
 # get_residuals_at_PSPs(psp_array1, location_PSP1, psp_array2, location_PSP2)
-# print("Data set 1 # PSPs:          ", num_PSP)
-# print("Data set 1 mean of 1sigma:  ", mean)
-# print("Data set 2 # PSPs:          ", num_PSP2)
-# print("Data set 2 mean of 1sigma:  ", mean2)
-# print("")
 
-####################################################
+
 # test = -1
 # get_residuals_no_PSPs(lattitudes1[0:test], longitudes1[0:test], ellipsoidal_heights1[0:test], lattitudes2[0:test], longitudes2[0:test], ellipsoidal_heights2[0:test], search_distance, bias1, bias2, True)
 # print("")
-number_residuals, res_median, res_sigma = get_residuals(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, search_distance, bias1, bias2, True)
-print("res_sigma                   ", res_sigma)
-print("res_median                  ", res_median)
-print("n=:                         ", number_residuals)
+# number_residuals, res_median, res_sigma = get_residuals(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, search_distance, bias1, bias2, True)
+# print("res_sigma                   ", res_sigma)
+# print("res_median                  ", res_median)
+# print("n=:                         ", number_residuals)
 
+####################################################

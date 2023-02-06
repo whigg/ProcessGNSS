@@ -4989,3 +4989,10 @@ env/bin/Activate.ps1
 env/bin/activate.fish
 env/bin/activate.csh
 env/bin/activate
+*.8
+__pycache__/getStatsHelperFuncs.cpython-38.pyc
+env/bin/fonttools
+env/bin/pyftmerge
+env/bin/pyftsubset
+env/bin/ttx
+env/share/man/man1/ttx.1

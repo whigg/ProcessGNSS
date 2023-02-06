@@ -186,9 +186,9 @@ if __name__ == '__main__':
 
     script_dir = os.path.dirname(__file__)
     tempdir = 'tempData'
-    filename = 'ATL06_20220519155012_08791505_005_02.h5'
-    filename2 = 'ATL06_20220519155012_08791505_005_02_gt1l.h5'
-    file_path = os.path.join(script_dir, tempdir, filename2)
+    filename = 'ATL06_20220818113007_08791605_005_01.h5' #'ATL06_20220519155012_08791505_005_02.h5'
+    # filename2 = 'ATL06_20220519155012_08791505_005_02_gt1l.h5'
+    file_path = os.path.join(script_dir, tempdir, filename)
 
     # get_nearby_points(station_coordinates[1][0], station_coordinates[1][1], file_path, 200)
 
@@ -196,17 +196,22 @@ if __name__ == '__main__':
     bbox = -38.9,-37.7,72.5,72.7 # OGRENET BOUNDING BOX
     read_atl06(os.path.join(script_dir, tempdir, filename), bbox)
 
-    lon, lat, t, h, h_err, g_err = read_h5(file_path, ['lon', 'lat', 't_year', 'h_elv', 's_elv', 'geo_elv'])
-    # plt.scatter(lon, lat, c=h)
-    # plt.scatter(coordinates_transformed[0], coordinates_transformed[1], c='r')
-    # plt.rcParams.update({'font.size': 14})
-    # # plt.Circle((station_coordinates[1][0], station_coordinates[1][1]), 2, color='b', fill=False)
-    # plt.xlabel('Longitude ($^o$)', fontsize=14, fontweight='bold')
-    # plt.ylabel('Latitude ($^o$)', fontsize=14, fontweight='bold')
-    # plt.colorbar()
-    # plt.show()
+    # Get lat/lon for each groundtrack
+    beams = ['_gt1l.h5', '_gt1r.h5', '_gt2l.h5', '_gt2r.h5', '_gt3l.h5', '_gt3r.h5']
+    for i in range(0, 7):
+        filename_revised = filename[0:-3] + beams[i]
+        file_path = os.path.join(script_dir, tempdir, filename_revised)
+        lon, lat, t, h, h_err, g_err = read_h5(file_path, ['lon', 'lat', 't_year', 'h_elv', 's_elv', 'geo_elv'])
+        # plt.scatter(lon, lat, c=h)
+        # plt.scatter(coordinates_transformed[0], coordinates_transformed[1], c='r')
+        # plt.rcParams.update({'font.size': 14})
+        # # plt.Circle((station_coordinates[1][0], station_coordinates[1][1]), 2, color='b', fill=False)
+        # plt.xlabel('Longitude ($^o$)', fontsize=14, fontweight='bold')
+        # plt.ylabel('Latitude ($^o$)', fontsize=14, fontweight='bold')
+        # plt.colorbar()
+        # plt.show()
 
-    # print("saving CSV")
-    np.savetxt(filename2 + '.txt',np.c_[lon, lat, h, h_err, g_err])
+        # print("saving CSV")
+        np.savetxt(file_path + '.txt',np.c_[lon, lat, h, h_err, g_err])
 
 

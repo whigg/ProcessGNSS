@@ -44,7 +44,16 @@ if args.type == 'Kin_PPP':
 elif args.type == 'Stat_PPP':
     print("Static PPP")
 elif args.type == 'ICESat-2':
-    print("ICESat-2")
+    """
+    Parses Data from text file, in format [lon, lat, h, h_err, g_err] spaced by blank space
+    """
+    print("Parsing ICESat-2 ATL06")
+    data = np.genfromtxt(file_path1).T
+    longitudes1 = data[0]
+    lattitudes1 = data[1]
+    ellipsoidal_heights1 = data[2]
+    h_err1 = data[3]
+    g_err1 = data[4]
 elif args.type =='PPK':
     """
     Parses Data from Emlid Studio RTKLIB, First 10 rows are metadata, lat/lon decimal degrees
@@ -69,7 +78,13 @@ if args.type2 == 'Kin_PPP':
 elif args.type2 == 'Stat_PPP':
     print("Static PPP")
 elif args.type2 == 'ICESat-2':
-    print("ICESat-2")
+    print("Parsing ICESat-2 ATL06")
+    data = np.genfromtxt(file_path2).T
+    longitudes2 = data[0]
+    lattitudes2 = data[1]
+    ellipsoidal_heights2 = data[2]
+    h_err2 = data[3]
+    g_err2 = data[4]
 elif args.type2 =='PPK':
     print("Parsing PPK from RTKLIB")
     data = np.genfromtxt(file_path2, delimiter=None, skip_header=10, usecols=(1, 2, 3, 4, 5)).T
@@ -181,10 +196,14 @@ def get_residuals(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2,
         
         if distance.distance((lat1[i], lon1[i]), (lat2[indices[i]], lon2[indices[i]])).meters < search_distance:
             residuals.append(h1[i] - h2[indices[i]])
-            residual_locations.append([lat1[i], lon1[i]])
+            residual_locations.append([lat2[indices[i]], lon2[indices[i]]])
             hi1.append(h1[i])
             hi2.append(h2[indices[i]])
             prune_indices.append(indices[i])
+
+    if len(residuals) == 0:
+        print("residuals found")
+        return
 
     #prune arrays for second iteration
     array2_pruned = np.delete(array2, prune_indices, 0)
@@ -217,10 +236,10 @@ def get_residuals(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2,
         ## Verify Data ## 
         # plot where the residuals are, on top of original GPS points
         fig0, ax_a = plt.subplots()
-        residual_locations_transformed = np.asarray(residual_locations).T
-        ax_a.scatter(lon1, lat1, c='k', s=40, marker="o", label="dataset 1")
-        ax_a.scatter(lon2, lat2, c='dimgray', s=20, marker="o", label="dataset 2")
-        m = ax_a.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker="x", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=res_mean-1.5*res_sigma, vmax=res_mean+1.5*res_sigma, s=5)
+        residual_locations_transformed = np.asarray(residual_locations, dtype='object').T
+        ax_a.scatter(lon1, lat1, c='k', s=25, marker=".", label="dataset 1")
+        ax_a.scatter(lon2, lat2, c='dimgray', s=25, marker=".", label="dataset 2")
+        m = ax_a.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker=".", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=res_mean-3*res_sigma, vmax=res_mean+3*res_sigma, s=35)
         ax_a.set_xlabel('Longitude', fontsize=14, fontweight='bold')
         ax_a.set_ylabel('Latitude', fontsize=14, fontweight='bold')
         ax_a.set_title("Found Pairs within %.2f m, n=%.2f" % (search_distance, len(residual_locations_transformed[0])))
@@ -249,10 +268,10 @@ def get_residuals(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2,
             if residuals[i] < residuals[i] < res_mean + 3*res_sigma or residuals[i] < res_mean - 3*res_sigma:
                 outliers.append(residuals[i])
                 outliers_locations.append(residual_locations[i])
-        outliers_locations_transformed = np.asarray(outliers_locations).T
+        outliers_locations_transformed = np.asarray(outliers_locations, dtype='object').T
         colors = np.ndarray.flatten(np.asarray(outliers))
         ax_c.scatter(lon1, lat1, c='y', s=1)
-        ax_a.scatter(lon2, lat2, c='dimgray', s=1, marker="o")
+        ax_c.scatter(lon2, lat2, c='dimgray', s=1, marker="o")
         if len(outliers)>0:
             n = ax_c.scatter(outliers_locations_transformed[1], outliers_locations_transformed[0], c=colors, cmap='jet', s=5)
             fig2.colorbar(n, label='residuals (m)')
@@ -407,10 +426,10 @@ def get_residuals_no_PSPs(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1
     
 
 
-# bias = distance from antenna base to compacted snow
-bias1 =   .245 + (.05) #/2 #0.245 + (.04+.06)/2   # SLED
-bias2 =   1.797 + (.05)#/2 # POLYPOD
-search_distance = 1 # meters
+# bias = distance from antenna base to compacted snow [Polypod 1.797+snow depth; Sled: 0.245+snow depth]
+bias1 = 0
+bias2 =    .245 - .0825 #1.797 - 0.0825 - .046
+search_distance = 15 # meters
 #################################################################
 ############# PSEUDOSTATIC COMPARE
 # num_PSP, mean, psp_array1, location_PSP1 = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, False)
@@ -424,11 +443,10 @@ search_distance = 1 # meters
 # print("")
 
 ####################################################
-test = -1
-get_residuals_no_PSPs(lattitudes1[0:test], longitudes1[0:test], ellipsoidal_heights1[0:test], lattitudes2[0:test], longitudes2[0:test], ellipsoidal_heights2[0:test], search_distance, bias1, bias2, True)
-print("")
-test = -1
-number_residuals, res_median, res_sigma = get_residuals(lattitudes1[0:test], longitudes1[0:test], ellipsoidal_heights1[0:test], lattitudes2[0:test], longitudes2[0:test], ellipsoidal_heights2[0:test], search_distance, bias1, bias2, True)
+# test = -1
+# get_residuals_no_PSPs(lattitudes1[0:test], longitudes1[0:test], ellipsoidal_heights1[0:test], lattitudes2[0:test], longitudes2[0:test], ellipsoidal_heights2[0:test], search_distance, bias1, bias2, True)
+# print("")
+number_residuals, res_median, res_sigma = get_residuals(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, search_distance, bias1, bias2, True)
 print("res_sigma                   ", res_sigma)
 print("res_median                  ", res_median)
 print("n=:                         ", number_residuals)

@@ -221,12 +221,12 @@ def get_residuals(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2,
     res_mean = np.mean(residuals)
     res_median = np.median(residuals)
     new_res_mean = [i for i in residuals if res_mean - 3* res_sigma<i<res_mean + 3*res_sigma] 
-    new_sigma = np.std(new_res_mean)
+    # new_sigma = np.std(new_res_mean)
     # print("filtered sigma:             ", new_sigma)
 
     if plot:
         ## Verify Data ## 
-        plot_residuals(residuals, residual_locations, search_distance, res_mean, new_res_mean, res_median, res_sigma, new_sigma, hi1, hi2 )
+        plot_residuals(residuals, residual_locations, search_distance, res_mean, new_res_mean, res_median, res_sigma, lon1, lon2, lat1, lat2, hi1, hi2 )
         
     return number_residuals, res_median, res_sigma
 
@@ -359,36 +359,31 @@ def get_residuals_no_PSPs(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1
     h1_pruned, lat1_pruned, lon1_pruned = prune_PSPs(lat1, lon1, h1, bias1)
     h2_pruned, lat2_pruned, lon2_pruned = prune_PSPs(lat2, lon2, h2, bias2)
     number_residuals, res_median, res_sigma = get_residuals(lat1_pruned, lon1_pruned, h1_pruned, lat2_pruned, lon2_pruned, h2_pruned, search_distance, 0, 0, plot=True)
-    print("res_sigma_pruned_PSPs       ", res_sigma)
-    print("res_median_pruned_PSPs      ", res_median)
-    print("n: (pruned_PSPs)            ", number_residuals)
+    return number_residuals, res_median, res_sigma
     
 
 #################################################################
 # bias = distance from antenna base to compacted snow [Polypod 1.797+snow depth; Sled: 0.245+snow depth]
-bias1 = 0
-bias2 =    .245 - .0825 #1.797 - 0.0825 - .046
-search_distance = 15 # meters
+bias1 = .245
+bias2 =  1.797 - 0.06 #.245 - .0825 #1.797 - 0.0825 - .046
+search_distance = 1 # meters
 #################################################################
 ############# PSEUDOSTATIC COMPARE #############
 num_PSP, mean_1s_z, mean_1s_xy = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, True)
-# num_PSP2, mean2_1s_z,  mean2_1s_xy = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, False)
+num_PSP2, mean2_1s_z,  mean2_1s_xy = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, False)
 print("")
 print("Dataset 1 # PSPs:           ", num_PSP)
 print("Dataset 1 mean of 1sigma z: ", mean_1s_z)
 print("Dataset 1 mean of 1s    xy: ", mean_1s_xy)
-# print("Dataset 2 # PSPs:           ", num_PSP2)
-# print("Dataset 2 mean of 1sigma z: ", mean2_1s_z)
-# print("Dataset 2 mean of 1s    xy: ", mean2_1s_xy)
+print("Dataset 2 # PSPs:           ", num_PSP2)
+print("Dataset 2 mean of 1sigma z: ", mean2_1s_z)
+print("Dataset 2 mean of 1s    xy: ", mean2_1s_xy)
 print("")
 ############# RESIDUALS COMPARE #############
 # get_residuals_at_PSPs(psp_array1, location_PSP1, psp_array2, location_PSP2)
-
-
-# test = -1
 # get_residuals_no_PSPs(lattitudes1[0:test], longitudes1[0:test], ellipsoidal_heights1[0:test], lattitudes2[0:test], longitudes2[0:test], ellipsoidal_heights2[0:test], search_distance, bias1, bias2, True)
-# print("")
-# number_residuals, res_median, res_sigma = get_residuals(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, search_distance, bias1, bias2, True)
+
+# number_residuals, res_median, res_sigma = get_residuals_no_PSPs(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, search_distance, bias1, bias2, True)
 # print("res_sigma                   ", res_sigma)
 # print("res_median                  ", res_median)
 # print("n=:                         ", number_residuals)

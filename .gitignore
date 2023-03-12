@@ -4996,3 +4996,4 @@ env/bin/pyftmerge
 env/bin/pyftsubset
 env/bin/ttx
 env/share/man/man1/ttx.1
+*.pickled

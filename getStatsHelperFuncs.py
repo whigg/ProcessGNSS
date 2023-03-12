@@ -152,30 +152,37 @@ def plot_IR():
 
 def pickleme(list_type, list, filename):
     filename_new = list_type + filename + ".pickled"
-    with open(filename_new, 'wb') as f:
+    path = os.path.join("/tempData/", filename_new)
+    with open(path, 'wb') as f:
         pickle.dump(list, f)
 
-def plot_PSPs_all(list_type):
+def plot_PSPs_all(list_type1, list_type2):
     """Plots PSPs across all surveys, represented by pickled data that needs 
     to be pre-created for each survey"""
-    search = list_type + '*.pickled'
-    list_pickled = glob(search)
+    list_pickled = glob(list_type1 + '*.pickled')
     aggregated_list = []
     for i in range(0, len(list_pickled)):
-        with open(list_pickled[i], 'rb') as f:
+        with open(os.path.join("/tempData/", list_pickled[i]), 'rb') as f:
             aggregated_list.extend(pickle.load(f))
-        # plot histogram of residuals
+
+    list_pickled = glob(list_type2 + '*.pickled')
+    aggregated_list2 = []       
+    for i in range(0, len(list_pickled)):
+        with open(os.path.join("/tempData/", list_pickled[i]), 'rb') as f:
+            aggregated_list2.extend(pickle.load(f))   
+
     fig1, ax = plt.subplots()
-    ax.hist(np.asarray(aggregated_list)*100, bins=20, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
+    ax.hist(np.asarray(aggregated_list)*100, bins=20, histtype='bar', color='xkcd:blue', alpha=.5, label='OGRE') 
+    ax.hist(np.asarray(aggregated_list2)*100, bins=20, histtype='bar', color='xkcd:yellow', alpha=.5, label='Trimble R7') 
     ax.minorticks_on()
     ax.tick_params(bottom=True, right=True, left=True, top=True, which='minor') 
     ax.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
     ax.tick_params(labeltop=False, labelright=False, labelbottom=True, labelleft=True) 
-    ax.set_title(f"All PSPs (n = {len(aggregated_list)})\
-        \n skew: {scipy.stats.skew(aggregated_list)}", fontsize=14, fontname='Baskerville')
-    ax.set_xlabel("PSPs (cm)", fontsize=11, fontname='Baskerville', fontweight='light')
+    ax.set_title("All PSPs", fontsize=14, fontname='Baskerville')
+    ax.set_xlabel("1\u03C3 of PSPs (cm)", fontsize=11, fontname='Baskerville', fontweight='light')
     ax.set_ylabel("Counts", fontsize=11, fontname='Baskerville', fontweight='light')
     fig1.show()
+    plt.legend() 
     plt.show()
 
 def plot_residuals_all(list_type):
@@ -186,6 +193,8 @@ def plot_residuals_all(list_type):
         with open(list_pickled[i], 'rb') as f:
             aggregated_list.extend(pickle.load(f))
         # plot histogram of residuals
+    print("mean residual:              ", np.mean(aggregated_list))
+    print("standard deviation:         ", np.std(aggregated_list))
     fig1, ax = plt.subplots()
     ax.hist(np.asarray(aggregated_list)*100, bins=30, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
     ax.minorticks_on()

@@ -96,8 +96,8 @@ bias2 =  1.797 - 0.06 #.245 - .0825 #1.797 - 0.0825 - .046
 search_distance = 1 # meters
 #################################################################
 ############# PSEUDOSTATIC COMPARE #############
-num_PSP, mean_1s_z, mean_1s_xy, vertical_stats1, horizontal_stats1 = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, False)
-num_PSP2, mean2_1s_z,  mean2_1s_xy, vertical_stats2, horizontal_stats2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, False)
+# num_PSP, mean_1s_z, mean_1s_xy, vertical_stats1, horizontal_stats1 = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, True)
+# num_PSP2, mean2_1s_z,  mean2_1s_xy, vertical_stats2, horizontal_stats2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, True)
 # print("")
 # print("Dataset 1 # PSPs:           ", num_PSP)
 # print("Dataset 1 mean of 1sigma z: ", mean_1s_z)
@@ -112,10 +112,8 @@ num_PSP2, mean2_1s_z,  mean2_1s_xy, vertical_stats2, horizontal_stats2 = get_PSP
 # pickleme("horizontal_1", horizontal_stats1, os.path.basename(file_path1))
 # pickleme("horizontal_2", horizontal_stats2, os.path.basename(file_path2))
 ### plot pickle data
-# plot_PSPs_all("vertical_1")
-# plot_PSPs_all("vertical_2")
-# plot_PSPs_all("horizontal_1")
-# plot_PSPs_all("horizontal_1")
+# plot_PSPs_all("vertical_1", "vertical_2")
+# plot_PSPs_all("horizontal_1", "horizontal_2")
 
 ############# RESIDUALS COMPARE #############
 # get_residuals, get_residuals_no_PSPs

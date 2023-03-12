@@ -3,18 +3,25 @@ from geopy import distance
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import pickle
 from glob import glob
-import matplotlib.pyplot as plt
 from sklearn.neighbors import BallTree
 
+mpl.rcParams['axes.labelsize'] = 12
+mpl.rcParams['axes.labelweight'] = 'light'
+mpl.rcParams['axes.titlesize'] = 14
+mpl.rcParams['axes.titleweight'] = 'bold'
+mpl.rcParams['font.family'] = 'sans-serif'
+mpl.rcParams['font.sans-serif'] = 'Optima'
 
 
 def calculateHorizontals(list_positions):
     """
-    takes list of x, y coordinates, finds centroid and SD
+    INPUTS: list of x, y coordinates, finds centroid and SD
     assumes distances are small enough to make euclidean approximation:
     https://gis.stackexchange.com/questions/58653/what-is-approximate-error-of-pythagorean-theorem-vs-haversine-formula-in-measur
+    OUTPUTS: standard deviation of radial lengths between centroid and point; location of centroid
     """
     positions_T = np.asarray(list_positions).T
     x_avg = np.sum(positions_T[0])/len(positions_T[0])
@@ -40,20 +47,21 @@ def plot_PSPs(lon, lat, centroids, psp_full_locations, number_PSP):
     plt.scatter(lon, lat, c='b', s=5)
     plt.scatter(psps_T[1], psps_T[0], c='r', s=5)
     plt.scatter(centroids_T[1], centroids_T[0], c='g', s=20)
-    plt.xlabel('Longitude', fontsize=12, fontweight='light', fontname='Baskerville')
-    plt.ylabel('Latitude', fontsize=12, fontweight='light', fontname='Baskerville')
-    plt.title(f"Location of PSPs (n={number_PSP})", fontsize=14, fontweight='bold', fontname='Baskerville')    
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
+    plt.title(f"Location of PSPs (n={number_PSP})")    
     plt.show()
 
 def plot_residuals(residuals, residual_locations, search_distance, res_mean, new_res_mean, res_median, res_sigma, lon1, lon2, lat1, lat2, hi1, hi2 ):
+    """plot residuals: location, histogram, outliers, etc."""
     # plot where the residuals are, on top of original GPS points
     fig0, ax_a = plt.subplots()
     residual_locations_transformed = np.asarray(residual_locations, dtype='object').T
     ax_a.scatter(lon1, lat1, c='k', s=25, marker=".", label="dataset 1")
     ax_a.scatter(lon2, lat2, c='dimgray', s=25, marker=".", label="dataset 2")
     m = ax_a.scatter(residual_locations_transformed[1], residual_locations_transformed[0], marker=".", c=np.ndarray.flatten(np.asarray(residuals)), cmap='jet', vmin=res_mean-3*res_sigma, vmax=res_mean+3*res_sigma, s=35)
-    ax_a.set_xlabel('Longitude', fontsize=14, fontweight='bold')
-    ax_a.set_ylabel('Latitude', fontsize=14, fontweight='bold')
+    ax_a.set_xlabel('Longitude')
+    ax_a.set_ylabel('Latitude')
     ax_a.set_title("Found Pairs within %.2f m, n=%.2f" % (search_distance, len(residual_locations_transformed[0])))
     plt.legend()    
     fig0.colorbar(m, label='residuals (m)')
@@ -67,9 +75,9 @@ def plot_residuals(residuals, residual_locations, search_distance, res_mean, new
     ax_b.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
     ax_b.tick_params(labeltop=False, labelright=False, labelbottom=True, labelleft=True) 
     ax_b.set_title(f"Median Residual: {res_median*100:.1f}cm and 1\u03C3 SD: {res_sigma*100:.1f}cm \
-        \n skew: {scipy.stats.skew(new_res_mean)}", fontsize=14, fontname='Baskerville')
-    ax_b.set_xlabel("Elevation Residual (cm)", fontsize=11, fontname='Baskerville', fontweight='light')
-    ax_b.set_ylabel("Counts", fontsize=11, fontname='Baskerville', fontweight='light')
+        \n skew: {scipy.stats.skew(new_res_mean)}")
+    ax_b.set_xlabel("Elevation Residual (cm)")
+    ax_b.set_ylabel("Counts")
     fig1.show()
 
     # plot where the residuals are far from the mean residual
@@ -92,8 +100,8 @@ def plot_residuals(residuals, residual_locations, search_distance, res_mean, new
         n = ax_c.scatter(outliers_locations_transformed[1], outliers_locations_transformed[0], c=colors, cmap='jet', s=5)
         fig2.colorbar(n, label='residuals (m)')
     ax_c.set_title("Outlier Residual Locations")
-    ax_c.set_xlabel('Longitude', fontsize=14, fontweight='bold')
-    ax_c.set_ylabel('Latitude', fontsize=14, fontweight='bold')
+    ax_c.set_xlabel('Longitude')
+    ax_c.set_ylabel('Latitude')
     fig2.show()
 
     # plot elevation data through time both datasets
@@ -105,56 +113,28 @@ def plot_residuals(residuals, residual_locations, search_distance, res_mean, new
 
     plt.show()
 
-def calc_baseline_UTM(list1, list2):
-    """
-    list format: [[N, E, Alt]]
-    """
-    distances = []
-    for i in range(0, len(list1)):
-        # distances.append(math.dist(list1[i]-list2[i]))
-        distances.append(np.linalg.norm(list1[i]- list2[i]))
-
-    return distances
-
-def calc_baseline_convert(list1, list2):
-
-    distances = []
-    transformer = pyproj.Transformer.from_crs(
-    {"proj":'latlong', "ellps":'GRS80', "datum":'ITRF20'},
-    {"proj":'geocent', "ellps":'GRS80', "datum":'ITRF20'})
-
-    for i in range(0, len(list1)):
-        x1 ,y1, z1 = transformer.transform(list1[i][0],list1[i][1],list1[i][2],radians = False)
-        x2 ,y2, z2 = transformer.transform(list2[i][0],list2[i][1],list2[i][2],radians = False)
-        point1 = np.array((x1 ,y1, z1))
-        point2 = np.array((x2 ,y2, z2))
-        distances.append(np.linalg.norm(point1 - point2))
-
-    return distances
-
-def plot_IR():
-    ####### GNSS IR 
-    IR_heights = [1.59,1.645,1.615,1.705,1.58,1.631,1.63,1.68,1.766,1.63,1.645,1.68,1.686,1.655,1.68,1.66,1.765,1.68,1.641,1.75,1.59,1.665,1.715,1.63,1.58,1.615,1.66,1.621,1.68,1.605,1.635,1.585,1.601,1.671,1.585,1.71,1.621,1.65,1.73,1.68,1.75,1.665,1.631,1.665,1.615,1.645,1.746,1.6,1.606,1.62,1.691,1.675,1.721,1.585,1.625,1.635,1.685,1.595,1.65,1.615,1.6,1.615,1.58,1.615,1.6,1.67,1.745,1.581,1.696,1.586,1.671,1.651,1.64,1.66,1.705,1.59,1.625,1.665,1.72,1.63,1.646,1.56,1.685,1.625,1.645,1.59,1.666,1.63,1.7,1.751,1.636,1.665,1.736,1.606,1.685,1.71,1.675,1.75,1.665,1.675,1.745,1.625,1.7,1.741,1.59,1.615,1.64,1.645,1.655,1.69,1.6,1.675,1.58,1.59,1.66,1.595,1.681,1.74,1.64,1.635,1.665,1.675,1.67,1.73,1.635,1.606,1.665,1.615,1.605,1.655,1.586,1.605,1.655,1.651,1.745,1.615,1.66,1.611,1.681,1.715,1.65,1.605,1.67,1.775,1.63,1.685,1.591,1.681]
-    mean_IR_height = np.mean(IR_heights)
-    fig2, ax2 = plt.subplots()
-    ax2.hist(np.asarray(IR_heights), bins=20, histtype='bar', color='xkcd:navy', orientation='horizontal') 
-    ax2.set_title("Histogram of Antenna Height Estimates", fontsize=14, fontname='Baskerville', fontweight='bold')
-    ax2.set_ylabel("Estimated Height (m)", fontsize=12, fontname='Baskerville')
-    ax2.set_xlabel("Counts", fontsize=12, fontname='Baskerville')
-    ax2.axhline(mean_IR_height, color='red', lw=3, ls='-', label=f'mean height {mean_IR_height:.1f}m')
-    ax2.axhline(mean_IR_height + np.std(IR_heights), color='red', lw=1, ls='--', label=f'1 \u03C3 {np.std(IR_heights):.2f}m')
-    ax2.axhline(mean_IR_height - np.std(IR_heights), color='red', lw=1, ls='--')
-
-    plt.legend()
-    fig2.show()
-
+def plot_residuals_all(list_type):
+    search = "**/" + list_type + '*.pickled'
+    list_pickled = glob(search)
+    print(list_pickled)
+    aggregated_list = []
+    for i in range(0, len(list_pickled)):
+        with open(list_pickled[i], 'rb') as f:
+            aggregated_list.extend(pickle.load(f))
+        # plot histogram of residuals
+    print("mean residual:              ", np.mean(aggregated_list))
+    print("standard deviation:         ", np.std(aggregated_list))
+    fig1, ax = plt.subplots()
+    ax.hist(np.asarray(aggregated_list)*100, bins=30, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
+    ax.minorticks_on()
+    ax.tick_params(bottom=True, right=True, left=True, top=True, which='minor') 
+    ax.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
+    ax.tick_params(labeltop=False, labelright=False, labelbottom=True, labelleft=True) 
+    ax.set_title(f"All Residuals (n = {len(aggregated_list)}) \n skew: {scipy.stats.skew(aggregated_list)}")
+    ax.set_xlabel("Residuals (cm)")
+    ax.set_ylabel("Counts")
+    fig1.show()
     plt.show()
-
-def pickleme(list_type, list, filename):
-    filename_new = list_type + filename + ".pickled"
-    path = os.path.join("/tempData/", filename_new)
-    with open(path, 'wb') as f:
-        pickle.dump(list, f)
 
 def plot_PSPs_all(list_type1, list_type2):
     """Plots PSPs across all surveys, represented by pickled data that needs 
@@ -178,35 +158,80 @@ def plot_PSPs_all(list_type1, list_type2):
     ax.tick_params(bottom=True, right=True, left=True, top=True, which='minor') 
     ax.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
     ax.tick_params(labeltop=False, labelright=False, labelbottom=True, labelleft=True) 
-    ax.set_title("All PSPs", fontsize=14, fontname='Baskerville')
-    ax.set_xlabel("1\u03C3 of PSPs (cm)", fontsize=11, fontname='Baskerville', fontweight='light')
-    ax.set_ylabel("Counts", fontsize=11, fontname='Baskerville', fontweight='light')
+    ax.set_title("All PSPs")
+    ax.set_xlabel("1\u03C3 of PSPs (cm)")
+    ax.set_ylabel("Counts")
     fig1.show()
     plt.legend() 
     plt.show()
+    
+def plot_IR():
+    ####### GNSS IR 
+    IR_heights = [1.59,1.645,1.615,1.705,1.58,1.631,1.63,1.68,1.766,1.63,1.645,1.68,1.686,1.655,1.68,1.66,1.765,1.68,1.641,1.75,1.59,1.665,1.715,1.63,1.58,1.615,1.66,1.621,1.68,1.605,1.635,1.585,1.601,1.671,1.585,1.71,1.621,1.65,1.73,1.68,1.75,1.665,1.631,1.665,1.615,1.645,1.746,1.6,1.606,1.62,1.691,1.675,1.721,1.585,1.625,1.635,1.685,1.595,1.65,1.615,1.6,1.615,1.58,1.615,1.6,1.67,1.745,1.581,1.696,1.586,1.671,1.651,1.64,1.66,1.705,1.59,1.625,1.665,1.72,1.63,1.646,1.56,1.685,1.625,1.645,1.59,1.666,1.63,1.7,1.751,1.636,1.665,1.736,1.606,1.685,1.71,1.675,1.75,1.665,1.675,1.745,1.625,1.7,1.741,1.59,1.615,1.64,1.645,1.655,1.69,1.6,1.675,1.58,1.59,1.66,1.595,1.681,1.74,1.64,1.635,1.665,1.675,1.67,1.73,1.635,1.606,1.665,1.615,1.605,1.655,1.586,1.605,1.655,1.651,1.745,1.615,1.66,1.611,1.681,1.715,1.65,1.605,1.67,1.775,1.63,1.685,1.591,1.681]
+    mean_IR_height = np.mean(IR_heights)
+    fig2, ax2 = plt.subplots()
+    ax2.hist(np.asarray(IR_heights), bins=20, histtype='bar', color='xkcd:navy', orientation='horizontal') 
+    ax2.set_title("Histogram of Antenna Height Estimates")
+    ax2.set_ylabel("Estimated Height (m)")
+    ax2.set_xlabel("Counts")
+    ax2.axhline(mean_IR_height, color='red', lw=3, ls='-', label=f'mean height {mean_IR_height:.1f}m')
+    ax2.axhline(mean_IR_height + np.std(IR_heights), color='red', lw=1, ls='--', label=f'1 \u03C3 {np.std(IR_heights):.2f}m')
+    ax2.axhline(mean_IR_height - np.std(IR_heights), color='red', lw=1, ls='--')
 
-def plot_residuals_all(list_type):
-    search = list_type + '*.pickled'
-    list_pickled = glob(search)
-    aggregated_list = []
-    for i in range(0, len(list_pickled)):
-        with open(list_pickled[i], 'rb') as f:
-            aggregated_list.extend(pickle.load(f))
-        # plot histogram of residuals
-    print("mean residual:              ", np.mean(aggregated_list))
-    print("standard deviation:         ", np.std(aggregated_list))
-    fig1, ax = plt.subplots()
-    ax.hist(np.asarray(aggregated_list)*100, bins=30, histtype='bar', color='xkcd:navy') #range=(res_mean-3*res_sigma, res_mean+3*res_sigma)
-    ax.minorticks_on()
-    ax.tick_params(bottom=True, right=True, left=True, top=True, which='minor') 
-    ax.tick_params(bottom=True, right=True, left=True, top=True, which='major') 
-    ax.tick_params(labeltop=False, labelright=False, labelbottom=True, labelleft=True) 
-    ax.set_title(f"All Residuals (n = {len(aggregated_list)})\
-        \n skew: {scipy.stats.skew(aggregated_list)}", fontsize=14, fontname='Baskerville')
-    ax.set_xlabel("Residuals (cm)", fontsize=11, fontname='Baskerville', fontweight='light')
-    ax.set_ylabel("Counts", fontsize=11, fontname='Baskerville', fontweight='light')
-    fig1.show()
+    plt.legend()
+    fig2.show()
+
     plt.show()
+
+def plot_carrier():
+    dataset1_phases = [1, 2, 3, 4, 5, 6]
+    dataset2_phases = [1.1, 2.1, 3.1, 4.1, 5.1, 6.1]
+    width = .35
+    ind = np.arange(len(dataset1_phases))
+    fig, ax = plt.subplots()
+    ax.bar(ind, dataset1_phases, width, color='royalblue', label='OGRE')
+    ax.bar(ind+width, dataset2_phases, width, color='seagreen', label='Trimble NetR9')
+    ax.set_ylabel('Mean Carrier-phase Residuals')
+    ax.set_xticks(ind + width / 2)
+    ax.set_xticklabels( (f'5\u00B0', f'5\u00B0', f'5\u00B0', f'5\u00B0', f'5\u00B0', f'5\u00B0') )
+    ax.set_xlabel("Elevation Angle")
+    plt.legend(loc='best')
+    fig.show()
+    plt.show()
+
+
+def calc_baseline_UTM(list1, list2):
+    """
+    list format: [[N, E, Alt]]
+    """
+    distances = []
+    for i in range(0, len(list1)):
+        # distances.append(math.dist(list1[i]-list2[i]))
+        distances.append(np.linalg.norm(list1[i]- list2[i]))
+
+    return distances
+
+def calc_baseline_convert(list1, list2):
+    """calculate the baseline length in ECEF (untested)"""
+    distances = []
+    transformer = pyproj.Transformer.from_crs(
+    {"proj":'latlong', "ellps":'GRS80', "datum":'ITRF20'},
+    {"proj":'geocent', "ellps":'GRS80', "datum":'ITRF20'})
+
+    for i in range(0, len(list1)):
+        x1 ,y1, z1 = transformer.transform(list1[i][0],list1[i][1],list1[i][2],radians = False)
+        x2 ,y2, z2 = transformer.transform(list2[i][0],list2[i][1],list2[i][2],radians = False)
+        point1 = np.array((x1 ,y1, z1))
+        point2 = np.array((x2 ,y2, z2))
+        distances.append(np.linalg.norm(point1 - point2))
+
+    return distances
+
+def pickleme(list_type, list, filename):
+    filename_new = list_type + filename + ".pickled"
+    path = os.path.join(os.getcwd(), "/tempData/", filename_new)
+    with open(path, 'wb') as f:
+        pickle.dump(list, f)
 
 def get_PSP_stats(lat, lon, h, bias, plot=True):
     """

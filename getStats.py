@@ -88,13 +88,14 @@ elif args.type2 =='PPK':
     longitudes2 = data[2][fixed]
     ellipsoidal_heights2 = data[3][fixed]
     decimal_hour2 = data[0][fixed] * 3600 - 162800
+
 ############################################################
-#################################################################
+############################################################
 # bias = distance from antenna base to compacted snow [Polypod 1.797+snow depth; Sled: 0.245+snow depth]
 bias1 = .245
 bias2 =  1.797 - 0.06 #.245 - .0825 #1.797 - 0.0825 - .046
 search_distance = 1 # meters
-#################################################################
+############################################################
 ############# PSEUDOSTATIC COMPARE #############
 # num_PSP, mean_1s_z, mean_1s_xy, vertical_stats1, horizontal_stats1 = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, True)
 # num_PSP2, mean2_1s_z,  mean2_1s_xy, vertical_stats2, horizontal_stats2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, True)

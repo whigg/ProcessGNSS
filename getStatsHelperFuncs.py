@@ -14,6 +14,8 @@ mpl.rcParams['axes.titlesize'] = 14
 mpl.rcParams['axes.titleweight'] = 'bold'
 mpl.rcParams['font.family'] = 'sans-serif'
 mpl.rcParams['font.sans-serif'] = 'Optima'
+plt.rcParams["figure.figsize"] = (3.34,3.34)
+plt.rcParams['figure.constrained_layout.use'] = 'True'
 
 
 def calculateHorizontals(list_positions):
@@ -198,7 +200,6 @@ def plot_carrier():
     plt.legend(loc='best')
     fig.show()
     plt.show()
-
 
 def calc_baseline_UTM(list1, list2):
     """
@@ -453,7 +454,7 @@ def get_residuals_at_PSPs(psp_array1, location_PSP1, psp_array2, location_PSP2):
     fig.show()
     plt.show()
 
-def prune_PSPs(lat, lon, h, bias):
+def prune_PSPs(lat, lon, h):
     """
     """
     minimum_distance = 0.05 # in meters, minimum distance to be part of a stationary PSP
@@ -461,14 +462,11 @@ def prune_PSPs(lat, lon, h, bias):
     lat = np.asarray(lat)
     lon = np.asarray(lon)
     i = 0
-
-    # correct for antenna heights
-    h = h - bias
+    delete_indices = []
 
     lst = ["|","/","-","\\"]
     while i < len(lat) - 1:
         print(lst[i % 4], end="\r")
-
         # get distance between first two points
         d = distance.distance((lat[i], lon[i]), (lat[i+1], lon[i+1])).meters # distance.distance calculates great circle distance of ellipsoid WGS84
         if d < minimum_distance: # potential cluster found
@@ -480,12 +478,13 @@ def prune_PSPs(lat, lon, h, bias):
                 j+=1
 
             if len(indices) > 7: # and len(temp_list) < 100: # cluster found, 10-50 seconds
-                h = np.delete(h, indices)
-                lat = np.delete(lat, indices)
-                lon = np.delete(lon, indices)
+                delete_indices.extend(indices)
             i = j # jump outside of cluster
 
         i +=1
+    h = np.delete(h, delete_indices)
+    lat = np.delete(lat, delete_indices)
+    lon = np.delete(lon, delete_indices)
     return h, lat, lon
 
 def get_residuals_no_PSPs(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1, bias2, plot=True):
@@ -493,7 +492,7 @@ def get_residuals_no_PSPs(lat1, lon1, h1, lat2, lon2, h2, search_distance, bias1
     Inputs: Lat/Lon/Elevation of Each dataset, plus bias above surface and search distance
     Output: Calculates all residuals within search_distance, not including PSPs
     """
-    h1_pruned, lat1_pruned, lon1_pruned = prune_PSPs(lat1, lon1, h1, bias1)
-    h2_pruned, lat2_pruned, lon2_pruned = prune_PSPs(lat2, lon2, h2, bias2)
-    return get_residuals(lat1_pruned, lon1_pruned, h1_pruned, lat2_pruned, lon2_pruned, h2_pruned, search_distance, 0, 0, plot)
+    h1_pruned, lat1_pruned, lon1_pruned = prune_PSPs(lat1, lon1, h1)
+    h2_pruned, lat2_pruned, lon2_pruned = prune_PSPs(lat2, lon2, h2)
+    return get_residuals(lat1_pruned, lon1_pruned, h1_pruned, lat2_pruned, lon2_pruned, h2_pruned, search_distance, bias1, bias2, plot)
     

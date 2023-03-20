@@ -92,13 +92,13 @@ elif args.type2 =='PPK':
 ############################################################
 ############################################################
 # bias = distance from antenna base to compacted snow [Polypod 1.797+snow depth; Sled: 0.245+snow depth]
-bias1 = .245
-bias2 =  1.797 - 0.06 #.245 - .0825 #1.797 - 0.0825 - .046
+bias1 = 0# .245
+bias2 = 0#1.797 - 0.06 #.245 - .0825 #1.797 - 0.0825 - .046
 search_distance = 1 # meters
 ############################################################
 ############# PSEUDOSTATIC COMPARE #############
 # num_PSP, mean_1s_z, mean_1s_xy, vertical_stats1, horizontal_stats1 = get_PSP_stats(lattitudes1, longitudes1, ellipsoidal_heights1, bias1, True)
-# num_PSP2, mean2_1s_z,  mean2_1s_xy, vertical_stats2, horizontal_stats2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, True)
+# num_PSP2, mean2_1s_z,  mean2_1s_xy, vertical_stats2, horizontal_stats2 = get_PSP_stats(lattitudes2, longitudes2, ellipsoidal_heights2, bias2, False)
 # print("")
 # print("Dataset 1 # PSPs:           ", num_PSP)
 # print("Dataset 1 mean of 1sigma z: ", mean_1s_z)
@@ -118,12 +118,12 @@ search_distance = 1 # meters
 
 ############# RESIDUALS COMPARE #############
 # get_residuals, get_residuals_no_PSPs
-# residuals, number_residuals, res_median, res_sigma = get_residuals_no_PSPs(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, search_distance, bias1, bias2, False)
-# print("res_sigma                   ", res_sigma)
-# print("res_median                  ", res_median)
-# print("n=:                         ", number_residuals)
+residuals, number_residuals, res_median, res_sigma = get_residuals_no_PSPs(lattitudes1, longitudes1, ellipsoidal_heights1, lattitudes2, longitudes2, ellipsoidal_heights2, search_distance, bias1, bias2, True)
+print("res_sigma                   ", res_sigma)
+print("res_median                  ", res_median)
+print("n=:                         ", number_residuals)
 ### pickle data
 # pickleme("residuals", residuals, os.path.basename(file_path1))
 ### plot pickle data
-plot_residuals_all("residuals")
+# plot_residuals_all("residuals")
 ####################################################
